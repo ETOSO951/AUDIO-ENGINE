@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELITE AUDIO ENGINE v1.1</title>
+    <title>ELITE AUDIO ENGINE v1.2</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#020617">
@@ -27,7 +27,7 @@
         
         #audio-container { 
             background: var(--card); width: 92%; max-width: 380px; 
-            height: 92vh; padding: 1.2rem; border-radius: 36px; 
+            height: 94vh; padding: 1.2rem; border-radius: 36px; 
             display: flex; flex-direction: column; align-items: center; 
             position: relative; border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 25px 60px rgba(0,0,0,0.6);
@@ -74,15 +74,19 @@
         .slider-container input { flex-grow: 1; accent-color: var(--primary); }
         .slider-val { width: 25px; text-align: right; font-family: monospace; }
 
-        /* 操作ボタン */
-        .control-btn { width: 100%; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
+        /* 操作ボタンエリア */
+        .btn-group { display: flex; gap: 8px; width: 100%; }
+        .control-btn { flex: 2; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
         .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
+        
+        /* PiP専用ボタン */
+        .pip-btn { flex: 1; background: #334155; color: white; font-size: 0.85rem; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="audio-container">
-    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.1</span></div>
+    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.2</span></div>
 
     <div class="storage-title">アプリ経由のデータソース</div>
     <div class="storage-box" id="saved-lists"></div>
@@ -131,8 +135,14 @@
         </div>
     </div>
 
-    <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
+    <div class="btn-group">
+        <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
+        <button id="pip-trigger-btn" class="pip-btn" onclick="togglePiP()">PIP WINDOW</button>
+    </div>
 </div>
+
+<video id="hidden-pip-video" autoplay playsinline muted style="display:none;"></video>
+<canvas id="hidden-pip-canvas" width="400" height="200" style="display:none;"></canvas>
 
 <script>
 let database = [];
@@ -142,10 +152,12 @@ let synth = window.speechSynthesis;
 let voices = [];
 let timeoutId = null;
 
-// --- バックグラウンド再生維持用の隠しオーディオ・WakeLock変数 ---
+// --- バックグラウンド・PiP用の制御変数 ---
 let wakeLock = null;
 let audioCtx = null;
 let silenceNode = null;
+let pipCanvasStream = null;
+let isCanvasLooping = false;
 
 window.onload = function() {
     renderSavedLists();
@@ -154,36 +166,38 @@ window.onload = function() {
         synth.onvoiceschanged = loadVoices;
     }
     
-    // 初回のユーザーインタラクション時にWeb Audio APIを初期化
     document.body.addEventListener('click', initAudioContext, { once: true });
     document.body.addEventListener('touchstart', initAudioContext, { once: true });
+    
+    // ページを閉じたりバックグラウンド化でPiPが解除された場合の監視イベント
+    const video = document.getElementById('hidden-pip-video');
+    video.addEventListener('leavepictureinpicture', () => {
+        document.getElementById('pip-trigger-btn').style.background = '#334155';
+    });
 };
 
-// Web Audio APIでダミーの無音トラックを常時ループ再生させ、OSのスリープを防止する
 function initAudioContext() {
     if (audioCtx) return;
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
         
-        // 1秒間の無音バッファを生成
         const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
         silenceNode = audioCtx.createBufferSource();
         silenceNode.buffer = buffer;
         silenceNode.loop = true;
         silenceNode.connect(audioCtx.destination);
     } catch (e) {
-        console.error("Web Audio API の初期化に失敗しました:", e);
+        console.error("Web Audio API 初期化エラー:", e);
     }
 }
 
-// 画面自体の自動消灯（自動スリープ）をロックする機能
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
         try {
             wakeLock = await navigator.wakeLock.request('screen');
         } catch (err) {
-            console.error(`Wake Lock エラー: ${err.name}, ${err.message}`);
+            console.error(`Wake Lock エラー: ${err.name}`);
         }
     }
 }
@@ -191,6 +205,82 @@ async function requestWakeLock() {
 function releaseWakeLock() {
     if (wakeLock) {
         wakeLock.release().then(() => { wakeLock = null; });
+    }
+}
+
+// --- 【新機能】テキストを描画して疑似的な映像を作る処理ループ ---
+function startCanvasRenderLoop() {
+    if (isCanvasLooping) return;
+    isCanvasLooping = true;
+
+    const canvas = document.getElementById('hidden-pip-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function renderFrame() {
+        if (!isCanvasLooping) return;
+
+        // 1. 背景をクリア・描画
+        ctx.fillStyle = "#0f172a"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. モード（上部のステータス）を描画
+        const modeText = document.getElementById('current-track').innerText;
+        ctx.fillStyle = "#aa98f8"; 
+        ctx.font = "bold 14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(modeText, canvas.width / 2, 35);
+
+        // 3. メインの読み上げテキストを中央に描画
+        const text = document.getElementById('now-playing').innerText;
+        ctx.fillStyle = "#f1f5f9"; 
+        ctx.font = "bold 22px sans-serif";
+        
+        // 長い文字列を安全に表示するため簡易折り返し処理
+        if (text.length > 14) {
+            ctx.fillText(text.substring(0, 14), canvas.width / 2, 100);
+            ctx.fillText(text.substring(14, 28), canvas.width / 2, 135);
+        } else {
+            ctx.fillText(text, canvas.width / 2, 110);
+        }
+
+        requestAnimationFrame(renderFrame);
+    }
+    renderFrame();
+}
+
+// --- 【新機能】ピクチャーインピクチャー(PiP)ウィンドウの切り替え制御 ---
+async function togglePiP() {
+    const video = document.getElementById('hidden-pip-video');
+    const canvas = document.getElementById('hidden-pip-canvas');
+    const pipBtn = document.getElementById('pip-trigger-btn');
+
+    if (!document.pictureInPictureEnabled) {
+        alert("お使いの端末・ブラウザはピクチャー・イン・ピクチャー機能に対応していません。");
+        return;
+    }
+
+    try {
+        if (document.pictureInPictureElement) {
+            // すでに起動中なら終了する
+            await document.exitPictureInPicture();
+            pipBtn.style.background = '#334155';
+        } else {
+            // キャンバス描画ループを開始
+            startCanvasRenderLoop();
+            
+            // キャンバスから映像のメディアストリーム(毎秒5フレーム)を抽出してvideoに供給
+            if (!video.srcObject) {
+                pipCanvasStream = canvas.captureStream(5);
+                video.srcObject = pipCanvasStream;
+            }
+            
+            await video.play();
+            await video.requestPictureInPicture();
+            pipBtn.style.background = 'var(--accent)';
+        }
+    } catch (e) {
+        console.error("PiP制御エラー:", e);
+        alert("起動できませんでした。先に音声の『START AUDIO』を押して再生状態にしてからお試しください。");
     }
 }
 
@@ -331,7 +421,6 @@ function startAudio() {
     btn.innerText = "STOP AUDIO";
     btn.classList.add('playing');
     
-    // --- バックグラウンド維持プロセスの起動 ---
     initAudioContext();
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -341,6 +430,9 @@ function startAudio() {
     }
     requestWakeLock();
     
+    // 音声開始と同時にCanvasループも回す（PiPへのリアルタイムテキスト反映用）
+    startCanvasRenderLoop();
+    
     speakLoop();
 }
 
@@ -349,11 +441,12 @@ function stopAudio() {
     synth.cancel();
     clearTimeout(timeoutId);
     
-    // --- バックグラウンド維持プロセスのサスペンド ---
     if (audioCtx && audioCtx.state === 'running') {
         audioCtx.suspend();
     }
     releaseWakeLock();
+    
+    isCanvasLooping = false;
     
     const btn = document.getElementById('action-btn');
     btn.innerText = "START AUDIO";
@@ -411,8 +504,8 @@ function speakLoop() {
 }
 
 function speakText(text, speed, pitch, voiceIdx, callback) {
-    // バックグラウンド時に各発話の頭で毎回キャンセルを入れると、
-    // キューが破棄されループが止まる端末があるため、直接インスタンスを作成して再生させます。
+    synth.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = speed;
     utterance.pitch = pitch;
@@ -422,15 +515,23 @@ function speakText(text, speed, pitch, voiceIdx, callback) {
     }
 
     utterance.onend = () => {
-        if (isPlaying && callback) callback();
+        if (isPlaying && callback) {
+            Promise.resolve().then(() => { callback(); });
+        }
     };
 
     utterance.onerror = (e) => {
         console.error("SpeechSynthesis error", e);
-        if (isPlaying && callback) callback();
+        if (isPlaying && callback) {
+            Promise.resolve().then(() => { callback(); });
+        }
     };
 
     synth.speak(utterance);
+    
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
 }
 
 if ('serviceWorker' in navigator) {
