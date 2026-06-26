@@ -27,42 +27,55 @@
         
         #audio-container { 
             background: var(--card); width: 92%; max-width: 380px; 
-            height: 90vh; padding: 1.5rem; border-radius: 36px; 
+            height: 92vh; padding: 1.2rem; border-radius: 36px; 
             display: flex; flex-direction: column; align-items: center; 
             position: relative; border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 25px 60px rgba(0,0,0,0.6);
             box-sizing: border-box;
         }
 
-        .title-logo { font-size: 1.8rem; font-weight: 900; margin-bottom: 1rem; letter-spacing: -1px; text-align: center;}
+        .title-logo { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.8rem; letter-spacing: -1px; text-align: center;}
         
-        /* 状況表示ボード */
-        .status-board {
-            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
-            padding: 20px; box-sizing: border-box; text-align: center;
-            margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05);
-            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        #current-track { font-size: 0.8rem; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
-        #now-playing { font-size: 1.6rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 4.5rem; display: flex; align-items: center; justify-content: center; }
-
-        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 16px; padding: 10px; box-sizing: border-box; max-height: 100px; overflow-y: auto; margin-bottom: 15px; }
-        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; font-weight: bold; width: 100%; text-align: left; }
+        /* データソースエリア */
+        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; width: 100%; text-align: left; }
+        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 8px; box-sizing: border-box; max-height: 80px; overflow-y: auto; margin-bottom: 8px; }
         .storage-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
         .storage-item.selected { background: rgba(170, 152, 248, 0.2) !important; border-color: var(--primary); }
 
+        /* コピペ用入力エリア */
+        .paste-container { width: 100%; display: flex; flex-direction: column; margin-bottom: 12px; position: relative; }
+        .paste-textarea { 
+            width: 100%; height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; 
+            color: white; padding: 8px; border-radius: 12px; font-size: 0.75rem; resize: none; box-sizing: border-box;
+            font-family: inherit; transition: border-color 0.2s;
+        }
+        .paste-textarea:focus { border-color: var(--primary); outline: none; }
+        .paste-textarea.active-input { border-color: var(--accent); background: rgba(236, 72, 153, 0.05); }
+        .clear-btn { position: absolute; right: 8px; bottom: 6px; background: rgba(255,255,255,0.1); border: none; color: #94a3b8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+
+        /* 状況表示ボード */
+        .status-board {
+            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
+            padding: 15px; box-sizing: border-box; text-align: center;
+            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
+            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 90px;
+        }
+        #current-track { font-size: 0.75rem; color: var(--primary); font-weight: bold; margin-bottom: 6px; }
+        #now-playing { font-size: 1.4rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 3.5rem; display: flex; align-items: center; justify-content: center; }
+
         /* コントロール・設定エリア */
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 20px; box-sizing: border-box; margin-bottom: 15px;}
-        .config-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: #94a3b8; }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 20px; box-sizing: border-box; margin-bottom: 12px;}
+        .config-item { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: #94a3b8; }
         .config-item.full { grid-column: span 2; }
-        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
+        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
         
         .slider-container { display: flex; align-items: center; gap: 8px; }
         .slider-container input { flex-grow: 1; accent-color: var(--primary); }
         .slider-val { width: 25px; text-align: right; font-family: monospace; }
 
         /* 操作ボタン */
-        .control-btn { width: 100%; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
+        .control-btn { width: 100%; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
         .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
     </style>
 </head>
@@ -71,8 +84,14 @@
 <div id="audio-container">
     <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.0</span></div>
 
-    <div class="storage-title">読み上げるデータソースを選択</div>
+    <div class="storage-title">アプリ経由のデータソース</div>
     <div class="storage-box" id="saved-lists"></div>
+
+    <div class="storage-title">または、ここにテキストをコピペ</div>
+    <div class="paste-container">
+        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え または 問題:答え の形式でペーストしてください..." oninput="handlePasteInput()"></textarea>
+        <button class="clear-btn" id="clear-btn" onclick="clearPasteInput()" style="display:none;">クリア</button>
+    </div>
 
     <div class="status-board">
         <div id="current-track">STOPPED</div>
@@ -137,7 +156,6 @@ function loadVoices() {
     const select = document.getElementById('voice-select');
     select.innerHTML = '';
     
-    // 日本語と英語の音声を優先的に上にする
     voices.forEach((voice, index) => {
         const option = document.createElement('option');
         option.value = index;
@@ -147,7 +165,7 @@ function loadVoices() {
     });
 }
 
-function renderSavedLists() {
+function renderSavedLists(disableHighlight = false) {
     const container = document.getElementById('saved-lists');
     container.innerHTML = '';
     
@@ -165,7 +183,9 @@ function renderSavedLists() {
 
             const div = document.createElement('div');
             div.className = 'storage-item';
-            if (selectedStoredText === item.text || (!selectedStoredText && idx === 0)) {
+            
+            // コピペ入力中（disableHighlight=true）でなければ、デフォルトで最初の項目を選択
+            if (!disableHighlight && (selectedStoredText === item.text || (!selectedStoredText && idx === 0))) {
                 div.classList.add('selected'); 
                 selectedStoredText = item.text;
                 parseTextToDatabase(item.text);
@@ -174,6 +194,12 @@ function renderSavedLists() {
             
             div.onclick = () => {
                 if(isPlaying) stopAudio();
+                
+                // コピペエリアをクリアして通常モードへ
+                document.getElementById('paste-input').value = '';
+                document.getElementById('paste-input').classList.remove('active-input');
+                document.getElementById('clear-btn').style.display = 'none';
+                
                 selectedStoredText = item.text;
                 parseTextToDatabase(item.text);
                 renderSavedLists(); 
@@ -183,8 +209,41 @@ function renderSavedLists() {
     });
 }
 
+// コピペ入力エリアに文字が入力された時の処理
+function handlePasteInput() {
+    if(isPlaying) stopAudio();
+    
+    const inputTextArea = document.getElementById('paste-input');
+    const text = inputTextArea.value;
+    const clearBtn = document.getElementById('clear-btn');
+    
+    if (text.trim().length > 0) {
+        inputTextArea.classList.add('active-input');
+        clearBtn.style.display = 'block';
+        selectedStoredText = null; // リストの選択情報を解除
+        renderSavedLists(true);    // リストのハイライトを外して再描画
+        parseTextToDatabase(text); // コピペされた文字をパース
+    } else {
+        clearPasteInput();
+    }
+}
+
+// コピペ入力エリアのクリア
+function clearPasteInput() {
+    if(isPlaying) stopAudio();
+    
+    document.getElementById('paste-input').value = '';
+    document.getElementById('paste-input').classList.remove('active-input');
+    document.getElementById('clear-btn').style.display = 'none';
+    
+    selectedStoredText = null;
+    renderSavedLists(); // 再度通常通り最初のリストを選択状態にする
+}
+
 function parseTextToDatabase(text) {
     database = [];
+    if (!text || !text.trim()) return;
+
     if (text.includes(':')) {
         text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
             const p = b.split(/[\/\n/]+/).map(s => s.trim()).filter(s => s);
@@ -209,7 +268,7 @@ function togglePlay() {
 
 function startAudio() {
     if (database.length === 0) {
-        alert("読み上げるデータがありません。");
+        alert("読み上げるデータがありません。テキストを入力するかソースを選択してください。");
         return;
     }
     isPlaying = true;
