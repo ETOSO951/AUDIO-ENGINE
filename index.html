@@ -142,13 +142,57 @@ let synth = window.speechSynthesis;
 let voices = [];
 let timeoutId = null;
 
+// --- バックグラウンド再生維持用の隠しオーディオ・WakeLock変数 ---
+let wakeLock = null;
+let audioCtx = null;
+let silenceNode = null;
+
 window.onload = function() {
     renderSavedLists();
     loadVoices();
     if (synth.onvoiceschanged !== undefined) {
         synth.onvoiceschanged = loadVoices;
     }
+    
+    // 初回のユーザーインタラクション時にWeb Audio APIを初期化
+    document.body.addEventListener('click', initAudioContext, { once: true });
+    document.body.addEventListener('touchstart', initAudioContext, { once: true });
 };
+
+// Web Audio APIでダミーの無音トラックを常時ループ再生させ、OSのスリープを防止する
+function initAudioContext() {
+    if (audioCtx) return;
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        
+        // 1秒間の無音バッファを生成
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+        silenceNode = audioCtx.createBufferSource();
+        silenceNode.buffer = buffer;
+        silenceNode.loop = true;
+        silenceNode.connect(audioCtx.destination);
+    } catch (e) {
+        console.error("Web Audio API の初期化に失敗しました:", e);
+    }
+}
+
+// 画面自体の自動消灯（自動スリープ）をロックする機能
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+        } catch (err) {
+            console.error(`Wake Lock エラー: ${err.name}, ${err.message}`);
+        }
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; });
+    }
+}
 
 function loadVoices() {
     voices = synth.getVoices();
@@ -235,15 +279,12 @@ function clearPasteInput() {
     renderSavedLists(); 
 }
 
-// 【改良】通常の文章（コロンやスラッシュがない）でも1行ずつ処理できるようにパース処理を強化
 function parseTextToDatabase(text) {
     database = [];
     if (!text || !text.trim()) return;
 
-    // 1行ごとに分割（空行は除外）
     const lines = text.split('\n').map(s => s.trim()).filter(s => s);
 
-    // 1. 「コロン(:)」形式の判定
     if (text.includes(':')) {
         text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
             const p = b.split(/[\/]+/).map(s => s.trim()).filter(s => s);
@@ -251,11 +292,9 @@ function parseTextToDatabase(text) {
                 database.push({ q: p[0], a: p[1], isTextOnly: false });
             }
         });
-        if(database.length > 0) return; // 処理が成功していれば終了
+        if(database.length > 0) return;
     }
 
-    // 2. スラッシュ(/)による「問題/答え」判定
-    // いずれかの行にスラッシュが含まれているか確認
     const hasSlash = lines.some(line => line.includes('/'));
     if (hasSlash) {
         lines.forEach(line => {
@@ -263,15 +302,12 @@ function parseTextToDatabase(text) {
             if (parts.length >= 2) {
                 database.push({ q: parts[0], a: parts[1], isTextOnly: false });
             } else if (parts.length === 1) {
-                // スラッシュのない行は通常の文字列として処理
                 database.push({ q: parts[0], a: '', isTextOnly: true });
             }
         });
         return;
     }
 
-    // 3. 【新機能】区切り文字がない通常の文章・文字列（改行区切り）
-    // 1行1データ（1トラック）としてそのまま登録
     lines.forEach(line => {
         database.push({ q: line, a: '', isTextOnly: true });
     });
@@ -295,6 +331,16 @@ function startAudio() {
     btn.innerText = "STOP AUDIO";
     btn.classList.add('playing');
     
+    // --- バックグラウンド維持プロセスの起動 ---
+    initAudioContext();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    if (silenceNode) {
+        try { silenceNode.start(); } catch(e) {}
+    }
+    requestWakeLock();
+    
     speakLoop();
 }
 
@@ -302,6 +348,12 @@ function stopAudio() {
     isPlaying = false;
     synth.cancel();
     clearTimeout(timeoutId);
+    
+    // --- バックグラウンド維持プロセスのサスペンド ---
+    if (audioCtx && audioCtx.state === 'running') {
+        audioCtx.suspend();
+    }
+    releaseWakeLock();
     
     const btn = document.getElementById('action-btn');
     btn.innerText = "START AUDIO";
@@ -326,7 +378,6 @@ function speakLoop() {
     const trackInfo = document.getElementById('current-track');
     const display = document.getElementById('now-playing');
 
-    // 【改良】通常の単一テキストデータ、または「問題のみ」モードの場合
     if (item.isTextOnly || mode === 'q') {
         trackInfo.innerText = item.isTextOnly ? "MODE: TEXT PLAYBACK" : "MODE: QUESTION ONLY";
         display.innerText = item.q;
@@ -334,14 +385,12 @@ function speakLoop() {
             timeoutId = setTimeout(speakLoop, pauseSec);
         });
     } else if (mode === 'a') {
-        // クイズ形式データで「答えのみ」モード、かつ答えが存在する場合
         trackInfo.innerText = "MODE: ANSWER ONLY";
         display.innerText = item.a || "(答えデータなし)";
         speakText(item.a || "データなし", speed, pitch, selectedVoiceIdx, () => {
             timeoutId = setTimeout(speakLoop, pauseSec);
         });
     } else {
-        // 通常の「問題 ➔ 答え」セットモード
         trackInfo.innerText = "MODE: SET (QUESTION)";
         display.innerText = item.q;
         
@@ -362,8 +411,8 @@ function speakLoop() {
 }
 
 function speakText(text, speed, pitch, voiceIdx, callback) {
-    synth.cancel();
-    
+    // バックグラウンド時に各発話の頭で毎回キャンセルを入れると、
+    // キューが破棄されループが止まる端末があるため、直接インスタンスを作成して再生させます。
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = speed;
     utterance.pitch = pitch;
