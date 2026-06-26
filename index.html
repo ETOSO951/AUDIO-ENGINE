@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELITE AUDIO ENGINE v1.0</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AudioElite">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        :root {
+            --bg: #020617; --card: #1e293b; --primary: #aa98f8;
+            --success: #22c55e; --error: #f43f5e; --text: #f1f5f9;
+            --accent: #ec4899;
+        }
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        #audio-container { 
+            background: var(--card); width: 92%; max-width: 380px; 
+            height: 90vh; padding: 1.5rem; border-radius: 36px; 
+            display: flex; flex-direction: column; align-items: center; 
+            position: relative; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            box-sizing: border-box;
+        }
+
+        .title-logo { font-size: 1.8rem; font-weight: 900; margin-bottom: 1rem; letter-spacing: -1px; text-align: center;}
+        
+        /* 状況表示ボード */
+        .status-board {
+            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
+            padding: 20px; box-sizing: border-box; text-align: center;
+            margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05);
+            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        #current-track { font-size: 0.8rem; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
+        #now-playing { font-size: 1.6rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 4.5rem; display: flex; align-items: center; justify-content: center; }
+
+        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 16px; padding: 10px; box-sizing: border-box; max-height: 100px; overflow-y: auto; margin-bottom: 15px; }
+        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; font-weight: bold; width: 100%; text-align: left; }
+        .storage-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
+        .storage-item.selected { background: rgba(170, 152, 248, 0.2) !important; border-color: var(--primary); }
+
+        /* コントロール・設定エリア */
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 20px; box-sizing: border-box; margin-bottom: 15px;}
+        .config-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: #94a3b8; }
+        .config-item.full { grid-column: span 2; }
+        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
+        
+        .slider-container { display: flex; align-items: center; gap: 8px; }
+        .slider-container input { flex-grow: 1; accent-color: var(--primary); }
+        .slider-val { width: 25px; text-align: right; font-family: monospace; }
+
+        /* 操作ボタン */
+        .control-btn { width: 100%; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
+        .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
+    </style>
+</head>
+<body>
+
+<div id="audio-container">
+    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.0</span></div>
+
+    <div class="storage-title">読み上げるデータソースを選択</div>
+    <div class="storage-box" id="saved-lists"></div>
+
+    <div class="status-board">
+        <div id="current-track">STOPPED</div>
+        <div id="now-playing">再生ボタンを押してください</div>
+    </div>
+
+    <div class="config-grid">
+        <div class="config-item full">
+            <span>声の種類 (ボイスキャスト)</span>
+            <select id="voice-select"><option value="">システム標準音声</option></select>
+        </div>
+        <div class="config-item">
+            <span>読み上げモード</span>
+            <select id="play-mode">
+                <option value="set">問題 ➔ 答え (セット)</option>
+                <option value="q">問題のみ</option>
+                <option value="a">答えのみ</option>
+            </select>
+        </div>
+        <div class="config-item">
+            <span>次への間隔 (秒)</span>
+            <input type="number" id="pause-sec" class="config-input" value="2" min="0" max="10">
+        </div>
+        <div class="config-item full">
+            <span>速度 (Speed)</span>
+            <div class="slider-container">
+                <input type="range" id="val-speed" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('lbl-speed').innerText=this.value">
+                <span class="slider-val" id="lbl-speed">1.0</span>
+            </div>
+        </div>
+        <div class="config-item full">
+            <span>音程 (Pitch)</span>
+            <div class="slider-container">
+                <input type="range" id="val-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('lbl-pitch').innerText=this.value">
+                <span class="slider-val" id="lbl-pitch">1.0</span>
+            </div>
+        </div>
+    </div>
+
+    <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
+</div>
+
+<script>
+let database = [];
+let selectedStoredText = null;
+let isPlaying = false;
+let synth = window.speechSynthesis;
+let voices = [];
+let timeoutId = null;
+
+window.onload = function() {
+    renderSavedLists();
+    loadVoices();
+    if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadVoices;
+    }
+};
+
+// 利用可能な音声リストを読み込む
+function loadVoices() {
+    voices = synth.getVoices();
+    const select = document.getElementById('voice-select');
+    select.innerHTML = '';
+    
+    // 日本語と英語の音声を優先的に上にする
+    voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.default) option.textContent += ' [Default]';
+        select.appendChild(option);
+    });
+}
+
+function renderSavedLists() {
+    const container = document.getElementById('saved-lists');
+    container.innerHTML = '';
+    
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('eq_data_'));
+    
+    if(keys.length === 0) {
+        container.innerHTML = '<div style="font-size:0.75rem; opacity:0.5; text-align:center; padding:10px;">クイズ側でデータを保存してください</div>';
+        return;
+    }
+
+    keys.forEach((key, idx) => {
+        try {
+            const item = JSON.parse(localStorage.getItem(key));
+            if (!item || !item.genre) return;
+
+            const div = document.createElement('div');
+            div.className = 'storage-item';
+            if (selectedStoredText === item.text || (!selectedStoredText && idx === 0)) {
+                div.classList.add('selected'); 
+                selectedStoredText = item.text;
+                parseTextToDatabase(item.text);
+            }
+            div.innerHTML = `📂 ${item.genre} (${item.count}件)`;
+            
+            div.onclick = () => {
+                if(isPlaying) stopAudio();
+                selectedStoredText = item.text;
+                parseTextToDatabase(item.text);
+                renderSavedLists(); 
+            };
+            container.appendChild(div);
+        } catch(e) {}
+    });
+}
+
+function parseTextToDatabase(text) {
+    database = [];
+    if (text.includes(':')) {
+        text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
+            const p = b.split(/[\/\n/]+/).map(s => s.trim()).filter(s => s);
+            if(p.length >= 2) database.push({ q: p[0], a: p[1] });
+        });
+    } else {
+        const it = text.split(/[\/\n/]+/).map(s => s.trim()).filter(s => s);
+        for(let i=0; i < it.length; i += 2) {
+            const c = it.slice(i, i + 2);
+            if(c.length >= 2) database.push({ q: c[0], a: c[1] });
+        }
+    }
+}
+
+function togglePlay() {
+    if (isPlaying) {
+        stopAudio();
+    } else {
+        startAudio();
+    }
+}
+
+function startAudio() {
+    if (database.length === 0) {
+        alert("読み上げるデータがありません。");
+        return;
+    }
+    isPlaying = true;
+    const btn = document.getElementById('action-btn');
+    btn.innerText = "STOP AUDIO";
+    btn.classList.add('playing');
+    
+    speakLoop();
+}
+
+function stopAudio() {
+    isPlaying = false;
+    synth.cancel();
+    clearTimeout(timeoutId);
+    
+    const btn = document.getElementById('action-btn');
+    btn.innerText = "START AUDIO";
+    btn.classList.remove('playing');
+    
+    document.getElementById('current-track').innerText = "STOPPED";
+    document.getElementById('now-playing').innerText = "一時停止しました";
+}
+
+function speakLoop() {
+    if (!isPlaying) return;
+
+    const randomIndex = Math.floor(Math.random() * database.length);
+    const item = database[randomIndex];
+    
+    const mode = document.getElementById('play-mode').value;
+    const speed = parseFloat(document.getElementById('val-speed').value);
+    const pitch = parseFloat(document.getElementById('val-pitch').value);
+    const selectedVoiceIdx = document.getElementById('voice-select').value;
+    const pauseSec = parseInt(document.getElementById('pause-sec').value) * 1000;
+
+    const trackInfo = document.getElementById('current-track');
+    const display = document.getElementById('now-playing');
+
+    if (mode === 'q') {
+        trackInfo.innerText = "MODE: QUESTION ONLY";
+        display.innerText = item.q;
+        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
+            timeoutId = setTimeout(speakLoop, pauseSec);
+        });
+    } else if (mode === 'a') {
+        trackInfo.innerText = "MODE: ANSWER ONLY";
+        display.innerText = item.a;
+        speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
+            timeoutId = setTimeout(speakLoop, pauseSec);
+        });
+    } else {
+        trackInfo.innerText = "MODE: SET (QUESTION)";
+        display.innerText = item.q;
+        
+        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
+            if (!isPlaying) return;
+            
+            timeoutId = setTimeout(() => {
+                if (!isPlaying) return;
+                trackInfo.innerText = "MODE: SET (ANSWER)";
+                display.innerText = item.a;
+                
+                speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
+                    timeoutId = setTimeout(speakLoop, pauseSec);
+                });
+            }, 1000);
+        });
+    }
+}
+
+function speakText(text, speed, pitch, voiceIdx, callback) {
+    synth.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speed;
+    utterance.pitch = pitch;
+    
+    if (voiceIdx !== "" && voices[voiceIdx]) {
+        utterance.voice = voices[voiceIdx];
+    }
+
+    utterance.onend = () => {
+        if (isPlaying && callback) callback();
+    };
+
+    utterance.onerror = (e) => {
+        console.error("SpeechSynthesis error", e);
+        if (isPlaying && callback) callback();
+    };
+
+    synth.speak(utterance);
+}
+
+// ─── PWA用 サービスワーカーの登録 ───
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker 登録成功:', reg.scope))
+            .catch(err => console.error('Service Worker 登録失敗:', err));
+    });
+}
+</script>
+</body>
+</html>
