@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELITE AUDIO ENGINE v1.0</title>
+    <title>ELITE AUDIO ENGINE v1.1</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#020617">
@@ -82,14 +82,14 @@
 <body>
 
 <div id="audio-container">
-    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.0</span></div>
+    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.1</span></div>
 
     <div class="storage-title">アプリ経由のデータソース</div>
     <div class="storage-box" id="saved-lists"></div>
 
     <div class="storage-title">または、ここにテキストをコピペ</div>
     <div class="paste-container">
-        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え または 問題:答え の形式でペーストしてください..." oninput="handlePasteInput()"></textarea>
+        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え、または、通常の文章をペースト..." oninput="handlePasteInput()"></textarea>
         <button class="clear-btn" id="clear-btn" onclick="clearPasteInput()" style="display:none;">クリア</button>
     </div>
 
@@ -107,7 +107,7 @@
             <span>読み上げモード</span>
             <select id="play-mode">
                 <option value="set">問題 ➔ 答え (セット)</option>
-                <option value="q">問題のみ</option>
+                <option value="q">問題（または単一テキスト）のみ</option>
                 <option value="a">答えのみ</option>
             </select>
         </div>
@@ -150,7 +150,6 @@ window.onload = function() {
     }
 };
 
-// 利用可能な音声リストを読み込む
 function loadVoices() {
     voices = synth.getVoices();
     const select = document.getElementById('voice-select');
@@ -184,7 +183,6 @@ function renderSavedLists(disableHighlight = false) {
             const div = document.createElement('div');
             div.className = 'storage-item';
             
-            // コピペ入力中（disableHighlight=true）でなければ、デフォルトで最初の項目を選択
             if (!disableHighlight && (selectedStoredText === item.text || (!selectedStoredText && idx === 0))) {
                 div.classList.add('selected'); 
                 selectedStoredText = item.text;
@@ -195,7 +193,6 @@ function renderSavedLists(disableHighlight = false) {
             div.onclick = () => {
                 if(isPlaying) stopAudio();
                 
-                // コピペエリアをクリアして通常モードへ
                 document.getElementById('paste-input').value = '';
                 document.getElementById('paste-input').classList.remove('active-input');
                 document.getElementById('clear-btn').style.display = 'none';
@@ -209,7 +206,6 @@ function renderSavedLists(disableHighlight = false) {
     });
 }
 
-// コピペ入力エリアに文字が入力された時の処理
 function handlePasteInput() {
     if(isPlaying) stopAudio();
     
@@ -220,15 +216,14 @@ function handlePasteInput() {
     if (text.trim().length > 0) {
         inputTextArea.classList.add('active-input');
         clearBtn.style.display = 'block';
-        selectedStoredText = null; // リストの選択情報を解除
-        renderSavedLists(true);    // リストのハイライトを外して再描画
-        parseTextToDatabase(text); // コピペされた文字をパース
+        selectedStoredText = null; 
+        renderSavedLists(true);    
+        parseTextToDatabase(text); 
     } else {
         clearPasteInput();
     }
 }
 
-// コピペ入力エリアのクリア
 function clearPasteInput() {
     if(isPlaying) stopAudio();
     
@@ -237,25 +232,49 @@ function clearPasteInput() {
     document.getElementById('clear-btn').style.display = 'none';
     
     selectedStoredText = null;
-    renderSavedLists(); // 再度通常通り最初のリストを選択状態にする
+    renderSavedLists(); 
 }
 
+// 【改良】通常の文章（コロンやスラッシュがない）でも1行ずつ処理できるようにパース処理を強化
 function parseTextToDatabase(text) {
     database = [];
     if (!text || !text.trim()) return;
 
+    // 1行ごとに分割（空行は除外）
+    const lines = text.split('\n').map(s => s.trim()).filter(s => s);
+
+    // 1. 「コロン(:)」形式の判定
     if (text.includes(':')) {
         text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
-            const p = b.split(/[\/\n/]+/).map(s => s.trim()).filter(s => s);
-            if(p.length >= 2) database.push({ q: p[0], a: p[1] });
+            const p = b.split(/[\/]+/).map(s => s.trim()).filter(s => s);
+            if(p.length >= 2) {
+                database.push({ q: p[0], a: p[1], isTextOnly: false });
+            }
         });
-    } else {
-        const it = text.split(/[\/\n/]+/).map(s => s.trim()).filter(s => s);
-        for(let i=0; i < it.length; i += 2) {
-            const c = it.slice(i, i + 2);
-            if(c.length >= 2) database.push({ q: c[0], a: c[1] });
-        }
+        if(database.length > 0) return; // 処理が成功していれば終了
     }
+
+    // 2. スラッシュ(/)による「問題/答え」判定
+    // いずれかの行にスラッシュが含まれているか確認
+    const hasSlash = lines.some(line => line.includes('/'));
+    if (hasSlash) {
+        lines.forEach(line => {
+            const parts = line.split('/').map(s => s.trim()).filter(s => s);
+            if (parts.length >= 2) {
+                database.push({ q: parts[0], a: parts[1], isTextOnly: false });
+            } else if (parts.length === 1) {
+                // スラッシュのない行は通常の文字列として処理
+                database.push({ q: parts[0], a: '', isTextOnly: true });
+            }
+        });
+        return;
+    }
+
+    // 3. 【新機能】区切り文字がない通常の文章・文字列（改行区切り）
+    // 1行1データ（1トラック）としてそのまま登録
+    lines.forEach(line => {
+        database.push({ q: line, a: '', isTextOnly: true });
+    });
 }
 
 function togglePlay() {
@@ -307,19 +326,22 @@ function speakLoop() {
     const trackInfo = document.getElementById('current-track');
     const display = document.getElementById('now-playing');
 
-    if (mode === 'q') {
-        trackInfo.innerText = "MODE: QUESTION ONLY";
+    // 【改良】通常の単一テキストデータ、または「問題のみ」モードの場合
+    if (item.isTextOnly || mode === 'q') {
+        trackInfo.innerText = item.isTextOnly ? "MODE: TEXT PLAYBACK" : "MODE: QUESTION ONLY";
         display.innerText = item.q;
         speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
             timeoutId = setTimeout(speakLoop, pauseSec);
         });
     } else if (mode === 'a') {
+        // クイズ形式データで「答えのみ」モード、かつ答えが存在する場合
         trackInfo.innerText = "MODE: ANSWER ONLY";
-        display.innerText = item.a;
-        speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
+        display.innerText = item.a || "(答えデータなし)";
+        speakText(item.a || "データなし", speed, pitch, selectedVoiceIdx, () => {
             timeoutId = setTimeout(speakLoop, pauseSec);
         });
     } else {
+        // 通常の「問題 ➔ 答え」セットモード
         trackInfo.innerText = "MODE: SET (QUESTION)";
         display.innerText = item.q;
         
@@ -362,7 +384,6 @@ function speakText(text, speed, pitch, voiceIdx, callback) {
     synth.speak(utterance);
 }
 
-// ─── PWA用 サービスワーカーの登録 ───
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
