@@ -1,546 +1,721 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELITE AUDIO ENGINE v1.2</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#020617">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="AudioElite">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
-    <style>
-        :root {
-            --bg: #020617; --card: #1e293b; --primary: #aa98f8;
-            --success: #22c55e; --error: #f43f5e; --text: #f1f5f9;
-            --accent: #ec4899;
-        }
+<!DOCTYPE html> 
+<html lang="ja"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
+    <title>8-Bit Monster Studio 8192 - EX V7.8 BOOST</title> 
+    <style> 
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; } 
         body { 
-            font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; margin: 0; overflow: hidden;
-            touch-action: manipulation;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background-color: #040406; color: #f0f0f5; margin: 0; padding: 10px; 
+            display: flex; flex-direction: column; align-items: center; height: 100vh; 
+        } 
+        h1 { font-size: 1.1rem; margin: 2px 0 6px 0; color: #ff00ff; letter-spacing: 2px; font-weight: 900; } 
+         
+        .section-wrapper { width: 100%; max-width: 1100px; margin-bottom: 6px; }
+        .toggle-section-btn {
+            background: #1a1a2a; color: #ffaa00; border: 1px solid #2d2d44;
+            padding: 3px 8px; font-size: 0.65rem; border-radius: 4px; cursor: pointer;
+            font-weight: bold; margin-bottom: 3px; display: inline-block;
         }
+        .toggle-section-btn:hover { background: #22223a; }
+
+        .panel { 
+            background: #0a0a10; width: 100%;
+            padding: 10px; border-radius: 8px; 
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; 
+            border: 1px solid #1a1a2a; 
+        } 
+        .row-flex { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } 
+        button { 
+            background: #ff007f; color: #fff; border: none; padding: 8px 12px; 
+            font-size: 0.8rem; font-weight: bold; border-radius: 4px; cursor: pointer; 
+        } 
+        button.playing { background: #00ffff; color: #000; } 
+        button.blue-btn { background: #007fff; color: white; } 
+         
+        .control-item { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; } 
+        input[type="range"] { width: 60px; accent-color: #ff007f; } 
+        select { background: #13131f; color: #fff; border: 1px solid #2d2d44; padding: 6px; font-size: 0.8rem; border-radius: 4px; font-weight: bold; } 
+         
+        .len-btn { background: #1a1a2a; color: #fff; padding: 5px 6px; font-size: 0.7rem; border: 1px solid #2d2d44; font-family: monospace; } 
+        .len-btn.big-step { color: #ffaa00; font-weight: bold; } 
+        .len-btn.huge-step { color: #00ffff; font-weight: bold; } 
+        .len-display { font-family: monospace; font-weight: bold; color: #ff00ff; min-width: 75px; text-align: center; font-size: 0.85rem; } 
+
+        .palette-container {
+            width: 100%; background: #0e0e1a; padding: 6px 10px;
+            border-radius: 6px; border: 1px solid #22223a;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .palette-title { font-size: 0.75rem; font-weight: bold; color: #ffaa00; }
+        .palette-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+        .p-btn {
+            background: #1c1c30; color: #ccc; border: 1px solid #333352; padding: 4px 8px;
+            font-size: 0.7rem; font-family: monospace; border-radius: 4px; cursor: pointer;
+        }
+        .p-btn.selected { background: #00ffaa; color: #000; font-weight: bold; border-color: #fff; }
+
+        .jump-container { 
+            display: flex; gap: 4px; overflow-x: auto; width: 100%; max-width: 1100px; 
+            background: #07070a; padding: 6px; border-radius: 6px; margin-bottom: 4px; 
+            white-space: nowrap; -webkit-overflow-scrolling: touch; 
+        } 
+        .jump-btn { background: #13131f; color: #ccc; border: 1px solid #222235; padding: 5px 10px; font-size: 0.7rem; border-radius: 4px; flex-shrink: 0; } 
+
+        .grid-container { 
+            width: 100%; max-width: 1100px; flex: 1; overflow: auto; 
+            background: #0a0a10; padding: 6px; border-radius: 8px; border: 1px solid #1a1a2a; 
+        } 
+        .sequencer-wrapper { display: inline-flex; position: relative; } 
+         
+        /* 【ラベル横幅を従来の約6割へスリム化】 95px ⇒ 58px に縮小 */
+        .labels { 
+            position: sticky; left: 0; background: #0a0a10; z-index: 50; 
+            display: flex; flex-direction: column; gap: 2px; padding-right: 4px; 
+            border-right: 2px solid #1a1a2a; margin-top: 24px; 
+        } 
+        /* 横幅(width)を58pxにし、フォントサイズや位置を微調整 */
+        .label-cell { 
+            height: 18px; width: 58px; font-size: 0.48rem; display: flex; 
+            align-items: center; justify-content: center; color: #666677; 
+            font-family: monospace; font-weight: bold; background: #0a0a10; 
+            letter-spacing: -0.5px; overflow: hidden; white-space: nowrap;
+        } 
+        .label-cell.black-key { color: #ffaa00; background: #110e14; } 
+        .label-cell.tri-key { color: #00aaff; }  
+        .label-cell.drum-key { color: #00ffff; background: #0b1318; } 
+        .label-cell.fx-key { color: #ff00ff; background: #140b18; } 
+
+        .sequencer-main { display: flex; flex-direction: column; } 
+         
+        .timeline-bar { 
+            display: grid; gap: 2px; height: 22px; margin-bottom: 2px; 
+            position: sticky; top: 0; background: #0a0a10; z-index: 10; 
+        } 
+        .bar-cell { 
+            background: #181826; color: #777; font-size: 0.55rem; font-family: monospace; 
+            text-align: center; line-height: 22px; cursor: pointer; border-radius: 2px; font-weight: bold; 
+        } 
+        .bar-cell.start-marker { background: #ff00ff; color: #fff; }  
+
+        .sequencer { display: grid; gap: 2px; } 
+         
+        .note-btn { 
+            height: 18px; width: 34px; border-radius: 2px; cursor: pointer; 
+            background: #12121f; border: 1px solid rgba(255,255,255,0.01); 
+            font-size: 0.45rem; font-family: monospace; font-weight: bold; 
+            color: rgba(255, 255, 255, 0.9); text-align: center; line-height: 16px; 
+            overflow: hidden; text-overflow: clip; white-space: nowrap;
+        } 
+        .note-btn.black-bg { background: #08080f; }  
+         
+        .note-btn.active { display: block !important; }
+        .note-btn[data-sound="square"].active { background: #ff007f !important; box-shadow: 0 0 5px #ff007f; color: #fff !important; } 
+        .note-btn[data-sound="duty_50"].active { background: #ff4500 !important; box-shadow: 0 0 5px #ff4500; color: #fff !important; } 
+        .note-btn[data-sound="triangle"].active { background: #00aaff !important; box-shadow: 0 0 5px #00aaff; color: #fff !important; } 
+        .note-btn[data-type="drum"].active { background: #00ffff !important; box-shadow: 0 0 5px #00ffff; color: #000 !important; } 
+        .note-btn[data-type="fx"].active { background: #ff00ff !important; box-shadow: 0 0 5px #ff00ff; color: #fff !important; } 
+
+        .note-btn.custom-note { filter: saturate(1.5) brightness(1.2); border: 1px solid rgba(255,255,255,0.7) !important; }
         
-        #audio-container { 
-            background: var(--card); width: 92%; max-width: 380px; 
-            height: 94vh; padding: 1.2rem; border-radius: 36px; 
-            display: flex; flex-direction: column; align-items: center; 
-            position: relative; border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-            box-sizing: border-box;
+        .note-btn.current-step, .bar-cell.current-step { filter: brightness(1.8) !important; border: 1px solid #fff !important; } 
+        .note-btn.beat-line { border-left: 1px solid #2a2a3f; } 
+
+        .ultra-light-mode-box {
+            background: #1e120c; border: 1px solid #ffaa00; padding: 4px 10px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: bold; color: #ffcc00; display: flex; align-items: center; gap: 5px;
         }
 
-        .title-logo { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.8rem; letter-spacing: -1px; text-align: center;}
-        
-        /* データソースエリア */
-        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; width: 100%; text-align: left; }
-        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 8px; box-sizing: border-box; max-height: 80px; overflow-y: auto; margin-bottom: 8px; }
-        .storage-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
-        .storage-item.selected { background: rgba(170, 152, 248, 0.2) !important; border-color: var(--primary); }
+        .storage-panel { 
+            width: 100%; background: #0a0a10; padding: 8px; 
+            border-radius: 6px; border: 1px solid #1a1a2a; 
+            display: flex; flex-direction: column; gap: 4px; 
+        } 
+        .storage-title { font-size: 0.7rem; color: #aaa; font-weight: bold; display: flex; justify-content: space-between; align-items: center; } 
+        .status-msg { margin-right: 8px; font-weight: normal; transition: color 0.3s; } 
+        .storage-box { 
+            width: 100%; background: #040406; color: #00ffff; border: 1px solid #1a1a2a; 
+            padding: 6px; font-family: monospace; font-size: 0.65rem; border-radius: 4px; 
+            resize: none; -webkit-user-select: text; user-select: text; 
+        } 
+    </style> 
+</head> 
+<body> 
 
-        /* コピペ用入力エリア */
-        .paste-container { width: 100%; display: flex; flex-direction: column; margin-bottom: 12px; position: relative; }
-        .paste-textarea { 
-            width: 100%; height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; 
-            color: white; padding: 8px; border-radius: 12px; font-size: 0.75rem; resize: none; box-sizing: border-box;
-            font-family: inherit; transition: border-color 0.2s;
-        }
-        .paste-textarea:focus { border-color: var(--primary); outline: none; }
-        .paste-textarea.active-input { border-color: var(--accent); background: rgba(236, 72, 153, 0.05); }
-        .clear-btn { position: absolute; right: 8px; bottom: 6px; background: rgba(255,255,255,0.1); border: none; color: #94a3b8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+    <h1>8-BIT MONSTER STUDIO 8192 - EX V7.8 BOOST</h1> 
 
-        /* 状況表示ボード */
-        .status-board {
-            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
-            padding: 15px; box-sizing: border-box; text-align: center;
-            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
-            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            min-height: 90px;
-        }
-        #current-track { font-size: 0.75rem; color: var(--primary); font-weight: bold; margin-bottom: 6px; }
-        #now-playing { font-size: 1.4rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 3.5rem; display: flex; align-items: center; justify-content: center; }
-
-        /* コントロール・設定エリア */
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 20px; box-sizing: border-box; margin-bottom: 12px;}
-        .config-item { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: #94a3b8; }
-        .config-item.full { grid-column: span 2; }
-        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
-        
-        .slider-container { display: flex; align-items: center; gap: 8px; }
-        .slider-container input { flex-grow: 1; accent-color: var(--primary); }
-        .slider-val { width: 25px; text-align: right; font-family: monospace; }
-
-        /* 操作ボタンエリア */
-        .btn-group { display: flex; gap: 8px; width: 100%; }
-        .control-btn { flex: 2; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
-        .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
-        
-        /* PiP専用ボタン */
-        .pip-btn { flex: 1; background: #334155; color: white; font-size: 0.85rem; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<div id="audio-container">
-    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.2</span></div>
-
-    <div class="storage-title">アプリ経由のデータソース</div>
-    <div class="storage-box" id="saved-lists"></div>
-
-    <div class="storage-title">または、ここにテキストをコピペ</div>
-    <div class="paste-container">
-        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え、または、通常の文章をペースト..." oninput="handlePasteInput()"></textarea>
-        <button class="clear-btn" id="clear-btn" onclick="clearPasteInput()" style="display:none;">クリア</button>
-    </div>
-
-    <div class="status-board">
-        <div id="current-track">STOPPED</div>
-        <div id="now-playing">再生ボタンを押してください</div>
-    </div>
-
-    <div class="config-grid">
-        <div class="config-item full">
-            <span>声の種類 (ボイスキャスト)</span>
-            <select id="voice-select"><option value="">システム標準音声</option></select>
-        </div>
-        <div class="config-item">
-            <span>読み上げモード</span>
-            <select id="play-mode">
-                <option value="set">問題 ➔ 答え (セット)</option>
-                <option value="q">問題（または単一テキスト）のみ</option>
-                <option value="a">答えのみ</option>
-            </select>
-        </div>
-        <div class="config-item">
-            <span>次への間隔 (秒)</span>
-            <input type="number" id="pause-sec" class="config-input" value="2" min="0" max="10">
-        </div>
-        <div class="config-item full">
-            <span>速度 (Speed)</span>
-            <div class="slider-container">
-                <input type="range" id="val-speed" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('lbl-speed').innerText=this.value">
-                <span class="slider-val" id="lbl-speed">1.0</span>
-            </div>
-        </div>
-        <div class="config-item full">
-            <span>音程 (Pitch)</span>
-            <div class="slider-container">
-                <input type="range" id="val-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('lbl-pitch').innerText=this.value">
-                <span class="slider-val" id="lbl-pitch">1.0</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="btn-group">
-        <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
-        <button id="pip-trigger-btn" class="pip-btn" onclick="togglePiP()">PIP WINDOW</button>
-    </div>
-</div>
-
-<video id="hidden-pip-video" autoplay playsinline muted style="display:none;"></video>
-<canvas id="hidden-pip-canvas" width="400" height="200" style="display:none;"></canvas>
-
-<script>
-let database = [];
-let selectedStoredText = null;
-let isPlaying = false;
-let synth = window.speechSynthesis;
-let voices = [];
-let timeoutId = null;
-
-// --- バックグラウンド・PiP用の制御変数 ---
-let wakeLock = null;
-let audioCtx = null;
-let silenceNode = null;
-let pipCanvasStream = null;
-let isCanvasLooping = false;
-
-window.onload = function() {
-    renderSavedLists();
-    loadVoices();
-    if (synth.onvoiceschanged !== undefined) {
-        synth.onvoiceschanged = loadVoices;
-    }
-    
-    document.body.addEventListener('click', initAudioContext, { once: true });
-    document.body.addEventListener('touchstart', initAudioContext, { once: true });
-    
-    // ページを閉じたりバックグラウンド化でPiPが解除された場合の監視イベント
-    const video = document.getElementById('hidden-pip-video');
-    video.addEventListener('leavepictureinpicture', () => {
-        document.getElementById('pip-trigger-btn').style.background = '#334155';
-    });
-};
-
-function initAudioContext() {
-    if (audioCtx) return;
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        
-        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
-        silenceNode = audioCtx.createBufferSource();
-        silenceNode.buffer = buffer;
-        silenceNode.loop = true;
-        silenceNode.connect(audioCtx.destination);
-    } catch (e) {
-        console.error("Web Audio API 初期化エラー:", e);
-    }
-}
-
-async function requestWakeLock() {
-    if ('wakeLock' in navigator) {
-        try {
-            wakeLock = await navigator.wakeLock.request('screen');
-        } catch (err) {
-            console.error(`Wake Lock エラー: ${err.name}`);
-        }
-    }
-}
-
-function releaseWakeLock() {
-    if (wakeLock) {
-        wakeLock.release().then(() => { wakeLock = null; });
-    }
-}
-
-// --- 【新機能】テキストを描画して疑似的な映像を作る処理ループ ---
-function startCanvasRenderLoop() {
-    if (isCanvasLooping) return;
-    isCanvasLooping = true;
-
-    const canvas = document.getElementById('hidden-pip-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    function renderFrame() {
-        if (!isCanvasLooping) return;
-
-        // 1. 背景をクリア・描画
-        ctx.fillStyle = "#0f172a"; 
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 2. モード（上部のステータス）を描画
-        const modeText = document.getElementById('current-track').innerText;
-        ctx.fillStyle = "#aa98f8"; 
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(modeText, canvas.width / 2, 35);
-
-        // 3. メインの読み上げテキストを中央に描画
-        const text = document.getElementById('now-playing').innerText;
-        ctx.fillStyle = "#f1f5f9"; 
-        ctx.font = "bold 22px sans-serif";
-        
-        // 長い文字列を安全に表示するため簡易折り返し処理
-        if (text.length > 14) {
-            ctx.fillText(text.substring(0, 14), canvas.width / 2, 100);
-            ctx.fillText(text.substring(14, 28), canvas.width / 2, 135);
-        } else {
-            ctx.fillText(text, canvas.width / 2, 110);
-        }
-
-        requestAnimationFrame(renderFrame);
-    }
-    renderFrame();
-}
-
-// --- 【新機能】ピクチャーインピクチャー(PiP)ウィンドウの切り替え制御 ---
-async function togglePiP() {
-    const video = document.getElementById('hidden-pip-video');
-    const canvas = document.getElementById('hidden-pip-canvas');
-    const pipBtn = document.getElementById('pip-trigger-btn');
-
-    if (!document.pictureInPictureEnabled) {
-        alert("お使いの端末・ブラウザはピクチャー・イン・ピクチャー機能に対応していません。");
-        return;
-    }
-
-    try {
-        if (document.pictureInPictureElement) {
-            // すでに起動中なら終了する
-            await document.exitPictureInPicture();
-            pipBtn.style.background = '#334155';
-        } else {
-            // キャンバス描画ループを開始
-            startCanvasRenderLoop();
-            
-            // キャンバスから映像のメディアストリーム(毎秒5フレーム)を抽出してvideoに供給
-            if (!video.srcObject) {
-                pipCanvasStream = canvas.captureStream(5);
-                video.srcObject = pipCanvasStream;
-            }
-            
-            await video.play();
-            await video.requestPictureInPicture();
-            pipBtn.style.background = 'var(--accent)';
-        }
-    } catch (e) {
-        console.error("PiP制御エラー:", e);
-        alert("起動できませんでした。先に音声の『START AUDIO』を押して再生状態にしてからお試しください。");
-    }
-}
-
-function loadVoices() {
-    voices = synth.getVoices();
-    const select = document.getElementById('voice-select');
-    select.innerHTML = '';
-    
-    voices.forEach((voice, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = `${voice.name} (${voice.lang})`;
-        if (voice.default) option.textContent += ' [Default]';
-        select.appendChild(option);
-    });
-}
-
-function renderSavedLists(disableHighlight = false) {
-    const container = document.getElementById('saved-lists');
-    container.innerHTML = '';
-    
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('eq_data_'));
-    
-    if(keys.length === 0) {
-        container.innerHTML = '<div style="font-size:0.75rem; opacity:0.5; text-align:center; padding:10px;">クイズ側でデータを保存してください</div>';
-        return;
-    }
-
-    keys.forEach((key, idx) => {
-        try {
-            const item = JSON.parse(localStorage.getItem(key));
-            if (!item || !item.genre) return;
-
-            const div = document.createElement('div');
-            div.className = 'storage-item';
-            
-            if (!disableHighlight && (selectedStoredText === item.text || (!selectedStoredText && idx === 0))) {
-                div.classList.add('selected'); 
-                selectedStoredText = item.text;
-                parseTextToDatabase(item.text);
-            }
-            div.innerHTML = `📂 ${item.genre} (${item.count}件)`;
-            
-            div.onclick = () => {
-                if(isPlaying) stopAudio();
+    <div class="section-wrapper">
+        <button class="toggle-section-btn" onclick="toggleVisibility('mainPanel', this)">▼ コントロールパネルを閉じる</button>
+        <div class="panel" id="mainPanel"> 
+            <div class="row-flex"> 
+                <button id="playBtn">再生 / 一時停止</button> 
                 
-                document.getElementById('paste-input').value = '';
-                document.getElementById('paste-input').classList.remove('active-input');
-                document.getElementById('clear-btn').style.display = 'none';
-                
-                selectedStoredText = item.text;
-                parseTextToDatabase(item.text);
-                renderSavedLists(); 
-            };
-            container.appendChild(div);
-        } catch(e) {}
-    });
-}
+                <div class="control-item" style="background: #1a0b14; padding: 2px 6px; border-radius: 4px; border: 1px solid #441a2f;">
+                    <label style="color:#ff007f; font-weight:bold;">全体音量:<span id="volVal">80</span>%</label>
+                    <input type="range" id="volSlider" min="0" max="100" value="80" style="accent-color: #ff007f; width: 70px;">
+                </div>
 
-function handlePasteInput() {
-    if(isPlaying) stopAudio();
-    
-    const inputTextArea = document.getElementById('paste-input');
-    const text = inputTextArea.value;
-    const clearBtn = document.getElementById('clear-btn');
-    
-    if (text.trim().length > 0) {
-        inputTextArea.classList.add('active-input');
-        clearBtn.style.display = 'block';
-        selectedStoredText = null; 
-        renderSavedLists(true);    
-        parseTextToDatabase(text); 
-    } else {
-        clearPasteInput();
-    }
-}
+                <div class="control-item"> 
+                    <label>BPM:<span id="bpmVal">130</span></label> 
+                    <input type="range" id="bpmSlider" min="60" max="240" value="130"> 
+                </div> 
+                 
+                <div class="control-item" style="background: #12121f; padding: 2px 6px; border-radius: 4px; border: 1px solid #1a1a2a;"> 
+                    <label style="color:#aaa;">長さ:</label> 
+                    <button class="len-btn huge-step" id="lenMinus100">－100</button> 
+                    <button class="len-btn big-step" id="lenMinus10">－10</button> 
+                    <button class="len-btn" id="lenMinus">－1</button> 
+                    <span class="len-display" id="lenDisplay">128 歩</span> 
+                    <button class="len-btn" id="lenPlus">＋1</button> 
+                    <button class="len-btn big-step" id="lenPlus10">＋10</button> 
+                    <button class="len-btn huge-step" id="lenPlus100">＋100</button> 
+                </div> 
 
-function clearPasteInput() {
-    if(isPlaying) stopAudio();
-    
-    document.getElementById('paste-input').value = '';
-    document.getElementById('paste-input').classList.remove('active-input');
-    document.getElementById('clear-btn').style.display = 'none';
-    
-    selectedStoredText = null;
-    renderSavedLists(); 
-}
+                <div class="control-item">
+                    <label style="color:#ffaa00; font-weight:bold;">音符カスタム:</label>
+                    <select id="customTypeSelect">
+                        <option value="none">なし (通常音符 ON/OFF)</option>
+                        <option value="roll">連打系 (x2, x3, x4, x5, x6)</option>
+                        <option value="div23">2分割・3分割の変則</option>
+                        <option value="div4">4分割の変則 (16分裏など)</option>
+                        <option value="all">すべてのカスタム音符を表示</option>
+                    </select>
+                </div>
 
-function parseTextToDatabase(text) {
-    database = [];
-    if (!text || !text.trim()) return;
+                <div class="ultra-light-mode-box">
+                    <input type="checkbox" id="freezeVisualCheck" checked>
+                    <label for="freezeVisualCheck">🎬 描画アニメ停止（音飛び防止・最軽量）</label>
+                </div>
+            </div> 
+             
+            <div class="row-flex"> 
+                <button class="blue-btn" id="exportBtn">🎵 WAV音声保存</button> 
+                <button id="clearBtn" style="background:#1a1a2a; color:#ff4444;">クリア</button> 
+            </div> 
+        </div> 
+    </div>
 
-    const lines = text.split('\n').map(s => s.trim()).filter(s => s);
+    <div class="section-wrapper" id="paletteWrapper" style="display: none;">
+        <button class="toggle-section-btn" onclick="toggleVisibility('paletteContainer', this)">▼ カスタムパレットを閉じる</button>
+        <div class="palette-container" id="paletteContainer">
+            <span class="palette-title">カスタム選択:</span>
+            <div class="palette-buttons" id="paletteButtons"></div>
+        </div>
+    </div>
 
-    if (text.includes(':')) {
-        text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
-            const p = b.split(/[\/]+/).map(s => s.trim()).filter(s => s);
-            if(p.length >= 2) {
-                database.push({ q: p[0], a: p[1], isTextOnly: false });
+    <div class="jump-container" id="jumpContainer"></div> 
+
+    <div class="grid-container" id="gridContainer"> 
+        <div class="sequencer-wrapper"> 
+            <div class="labels" id="labelsContainer"></div> 
+            <div class="sequencer-main"> 
+                <div class="timeline-bar" id="timelineBar"></div> 
+                <div class="sequencer" id="sequencer"></div> 
+            </div> 
+        </div> 
+    </div> 
+
+    <div class="section-wrapper" style="margin-top: 6px;">
+        <button class="toggle-section-btn" onclick="toggleVisibility('storagePanel', this)">▼ バックアップ欄を閉じる</button>
+        <div class="storage-panel" id="storagePanel"> 
+            <div class="storage-title"> 
+                <div>💾 バックアップ <span class="status-msg" id="statusMsg" style="color:#00ffff;">状態: 正常起動完了</span></div> 
+                <button id="manualLoadBtn" style="background:#1a1a2a; padding: 4px 10px; font-size:0.7rem; color:#fff;">コードから読み込む</button> 
+            </div> 
+            <textarea class="storage-box" id="storageBox" rows="2" placeholder="ここにデータを貼り付けて読込ボタンを押してください" onclick="this.select();"></textarea> 
+        </div> 
+    </div>
+
+    <script> 
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']; 
+        const allTracks = []; 
+         
+        for (let midi = 108; midi >= 85; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'square', isBlack: name.includes('#') }); 
+        }
+        for (let midi = 84; midi >= 55; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(M)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'duty_50', isBlack: name.includes('#') }); 
+        } 
+        for (let midi = 54; midi >= 39; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(Tri)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
+        } 
+        for (let midi = 38; midi >= 21; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(Sub)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
+        }
+
+        allTracks.push({ name: 'NOISE-H', freq: 950, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'NOISE-M', freq: 550, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'NOISE-L', freq: 250, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'METAL-N', freq: 1200, type: 'drum', sound: 'short_noise', isBlack: false });
+        allTracks.push({ name: 'PULSE-H', freq: 150, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'PULSE-M', freq: 95, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'PULSE-L', freq: 55, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'DPCM-KICK', freq: 45, type: 'drum', sound: 'dpcm_kick', isBlack: false });
+        allTracks.push({ name: 'DPCM-SNARE', freq: 120, type: 'drum', sound: 'dpcm_snare', isBlack: false });
+        allTracks.push({ name: 'SWEEP-UP', freq: 200, type: 'fx', sound: 'sweep_up', isBlack: false });
+        allTracks.push({ name: 'SWEEP-DOWN', freq: 800, type: 'fx', sound: 'sweep_down', isBlack: false });
+        allTracks.push({ name: 'COIN-FX', freq: 988, type: 'fx', sound: 'coin', isBlack: false });
+        allTracks.push({ name: 'LASER-FX', freq: 1500, type: 'fx', sound: 'laser', isBlack: false });
+        allTracks.push({ name: 'DUTY-12.5', freq: 440, type: 'fx', sound: 'duty_12', isBlack: false });
+        allTracks.push({ name: 'DUTY-25%', freq: 440, type: 'fx', sound: 'duty_25', isBlack: false });
+
+        const NOTE_DEFINITIONS = {
+            1: { label: '通常',    pattern: [1],             category: 'normal' },
+            2: { label: 'x2',      pattern: [1, 1],          category: 'roll' },
+            3: { label: 'x3',      pattern: [1, 1, 1],       category: 'roll' },
+            4: { label: 'x4',      pattern: [1, 1, 1, 1],    category: 'roll' },
+            5: { label: 'x5',      pattern: [1, 1, 1, 1, 1], category: 'roll' },
+            6: { label: 'x6',      pattern: [1, 1, 1, 1, 1, 1], category: 'roll' },
+            7: { label: '1/2',     pattern: [1, 0],          category: 'div23' },
+            8: { label: '2/2',     pattern: [0, 1],          category: 'div23' },
+            9: { label: '1/3',     pattern: [1, 0, 0],       category: 'div23' },
+            10: { label: '2/3',    pattern: [0, 1, 0],       category: 'div23' },
+            11: { label: '3/3',    pattern: [0, 0, 1],       category: 'div23' },
+            12: { label: '1&3',    pattern: [1, 0, 1],       category: 'div23' },
+            13: { label: '1/4',    pattern: [1, 0, 0, 0],    category: 'div4' },
+            14: { label: '2/4',    pattern: [0, 1, 0, 0],    category: 'div4' },
+            15: { label: '3/4',    pattern: [0, 0, 1, 0],    category: 'div4' },
+            16: { label: '4/4',    pattern: [0, 0, 0, 1],    category: 'div4' },
+            17: { label: '1&4',    pattern: [1, 0, 0, 1],    category: 'div4' },
+            18: { label: '裏打',   pattern: [0, 1, 0, 1],    category: 'div4' }
+        };
+
+        const maxSteps = 8192; 
+        let totalSteps = 128; 
+        let gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+         
+        let isPlaying = false, currentStep = 0, nextTickTime = 0.0, timerId = null, audioCtx = null, masterGainNode = null; 
+        let startFromStep = 0; 
+        let bpm = 130; 
+        let currentSelectedCustomId = 1; 
+        let lastVisualStep = -1; 
+        let globalVolume = 0.8; 
+
+        const sequencerEl = document.getElementById('sequencer'); 
+        const timelineBar = document.getElementById('timelineBar'); 
+        const labelsContainer = document.getElementById('labelsContainer'); 
+        const jumpContainer = document.getElementById('jumpContainer'); 
+        const gridContainer = document.getElementById('gridContainer'); 
+        const lenDisplay = document.getElementById('lenDisplay'); 
+        const storageBox = document.getElementById('storageBox'); 
+        const statusMsg = document.getElementById('statusMsg'); 
+        const customTypeSelect = document.getElementById('customTypeSelect');
+        const paletteWrapper = document.getElementById('paletteWrapper');
+        const paletteContainer = document.getElementById('paletteContainer');
+        const paletteButtons = document.getElementById('paletteButtons');
+        const freezeVisualCheck = document.getElementById('freezeVisualCheck');
+        const volSlider = document.getElementById('volSlider');
+        const volVal = document.getElementById('volVal');
+
+        function toggleVisibility(id, btn) {
+            const target = document.getElementById(id);
+            const isHidden = target.style.display === 'none';
+            target.style.display = isHidden ? (id === 'paletteContainer' ? 'flex' : '') : 'none';
+            const baseName = btn.innerText.replace(/[▼▶]\s*|を(閉じる|開く)/g, '');
+            btn.innerText = isHidden ? `▼ ${baseName}を閉じる` : `▶ ${baseName}を開く`;
+        }
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGainNode = audioCtx.createGain();
+                masterGainNode.gain.setValueAtTime(globalVolume, audioCtx.currentTime);
+                masterGainNode.connect(audioCtx.destination);
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        volSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            volVal.innerText = val;
+            globalVolume = val / 100;
+            if (masterGainNode && audioCtx) {
+                masterGainNode.gain.setValueAtTime(globalVolume, audioCtx.currentTime);
             }
         });
-        if(database.length > 0) return;
-    }
 
-    const hasSlash = lines.some(line => line.includes('/'));
-    if (hasSlash) {
-        lines.forEach(line => {
-            const parts = line.split('/').map(s => s.trim()).filter(s => s);
-            if (parts.length >= 2) {
-                database.push({ q: parts[0], a: parts[1], isTextOnly: false });
-            } else if (parts.length === 1) {
-                database.push({ q: parts[0], a: '', isTextOnly: true });
+        allTracks.forEach((track) => { 
+            const lbl = document.createElement('div'); 
+            lbl.classList.add('label-cell'); 
+            if (track.isBlack) lbl.classList.add('black-key'); 
+            if (track.sound === 'triangle') lbl.classList.add('tri-key'); 
+            if (track.type === 'drum') lbl.classList.add('drum-key'); 
+            if (track.type === 'fx') lbl.classList.add('fx-key'); 
+            lbl.innerText = track.name; 
+            labelsContainer.appendChild(lbl); 
+        }); 
+
+        function showStatus(text, color) { 
+            statusMsg.innerText = text; 
+            statusMsg.style.color = color; 
+        } 
+
+        function updatePaletteUI() {
+            const mode = customTypeSelect.value;
+            paletteButtons.innerHTML = '';
+            if (mode === 'none') { paletteWrapper.style.display = 'none'; currentSelectedCustomId = 1; return; }
+            paletteWrapper.style.display = '';
+            paletteContainer.style.display = 'flex';
+            createPaletteButton(1);
+            Object.keys(NOTE_DEFINITIONS).forEach(id => {
+                const numId = parseInt(id);
+                if (numId === 1) return;
+                const def = NOTE_DEFINITIONS[numId];
+                if (mode === 'all' || mode === def.category) createPaletteButton(numId);
+            });
+        }
+
+        function createPaletteButton(numId) {
+            const def = NOTE_DEFINITIONS[numId];
+            const pBtn = document.createElement('button');
+            pBtn.classList.add('p-btn');
+            pBtn.innerText = `${def.label} [${def.pattern.join('')}]`;
+            if (currentSelectedCustomId === numId) pBtn.classList.add('selected');
+            pBtn.addEventListener('click', () => { currentSelectedCustomId = numId; updatePaletteUI(); });
+            paletteButtons.appendChild(pBtn);
+        }
+
+        customTypeSelect.addEventListener('change', () => { updatePaletteUI(); });
+
+        function buildGrid() { 
+            sequencerEl.innerHTML = ''; 
+            timelineBar.innerHTML = ''; 
+            sequencerEl.style.gridTemplateColumns = `repeat(${totalSteps}, 34px)`; 
+            timelineBar.style.gridTemplateColumns = `repeat(${totalSteps}, 34px)`; 
+            lenDisplay.innerText = `${totalSteps} 歩`; 
+
+            for (let c = 0; c < totalSteps; c++) { 
+                const barCell = document.createElement('div'); 
+                barCell.classList.add('bar-cell'); 
+                barCell.id = `bar-c-${c}`; 
+                barCell.innerText = (c % 16 === 0) ? `【${c+1}】` : c + 1; 
+                if (c === startFromStep) barCell.classList.add('start-marker'); 
+
+                barCell.addEventListener('click', () => { 
+                    startFromStep = c; currentStep = c; 
+                    document.querySelectorAll('.bar-cell').forEach(cell => cell.classList.remove('start-marker')); 
+                    barCell.classList.add('start-marker'); 
+                }); 
+                timelineBar.appendChild(barCell); 
+            } 
+
+            allTracks.forEach((track, r) => { 
+                for (let c = 0; c < totalSteps; c++) { 
+                    const btn = document.createElement('div'); 
+                    btn.classList.add('note-btn'); 
+                    btn.id = `note-r-${r}-c-${c}`; 
+                    if (track.isBlack) btn.classList.add('black-bg'); 
+                    if (c % 4 === 0 && c > 0) btn.classList.add('beat-line'); 
+                     
+                    btn.dataset.row = r; btn.dataset.col = c; 
+                    btn.dataset.type = track.type; btn.dataset.sound = track.sound;
+
+                    const currentVal = gridState[r] && gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                    updateButtonVisual(btn, currentVal);
+
+                    btn.addEventListener('click', (e) => { 
+                        e.preventDefault(); initAudioContext(); 
+                        const mode = customTypeSelect.value;
+                        let currentState = gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                        if (mode === 'none') { gridState[r][c] = (currentState > 0) ? 0 : 1; } 
+                        else { gridState[r][c] = (currentState === currentSelectedCustomId) ? 0 : currentSelectedCustomId; }
+                        
+                        updateButtonVisual(btn, gridState[r][c]);
+                        if (gridState[r][c] > 0) { createSynthNode(audioCtx, track, audioCtx.currentTime); } 
+                        saveAndRefreshExportString(); 
+                    }); 
+                    sequencerEl.appendChild(btn); 
+                } 
+            }); 
+            buildJumpButtons(); updateExportString(); 
+        } 
+
+        function updateButtonVisual(btn, state) {
+            btn.classList.remove('active', 'custom-note'); btn.innerText = '';
+            if (state > 0) {
+                btn.classList.add('active');
+                const def = NOTE_DEFINITIONS[state];
+                if (def && state !== 1) { btn.classList.add('custom-note'); btn.innerText = def.label.trim(); }
             }
-        });
-        return;
-    }
+        }
 
-    lines.forEach(line => {
-        database.push({ q: line, a: '', isTextOnly: true });
-    });
-}
+        function buildJumpButtons() { 
+            jumpContainer.innerHTML = ''; 
+            const chunk = 64; 
+            const buttonCount = Math.ceil(totalSteps / chunk); 
+            for (let i = 0; i < buttonCount; i++) { 
+                const start = i * chunk + 1; 
+                const btn = document.createElement('button'); 
+                btn.classList.add('jump-btn'); btn.innerText = `${start}～`; 
+                btn.addEventListener('click', () => { gridContainer.scrollTo({ left: i * chunk * 34, behavior: 'smooth' }); }); 
+                jumpContainer.appendChild(btn); 
+            } 
+        } 
 
-function togglePlay() {
-    if (isPlaying) {
-        stopAudio();
-    } else {
-        startAudio();
-    }
-}
+        function saveAndRefreshExportString() { 
+            localStorage.setItem('m8192_ex_v7_state', JSON.stringify(gridState)); 
+            localStorage.setItem('m8192_ex_v7_length', totalSteps.toString()); 
+            updateExportString(); 
+        } 
 
-function startAudio() {
-    if (database.length === 0) {
-        alert("読み上げるデータがありません。テキストを入力するかソースを選択してください。");
-        return;
-    }
-    isPlaying = true;
-    const btn = document.getElementById('action-btn');
-    btn.innerText = "STOP AUDIO";
-    btn.classList.add('playing');
-    
-    initAudioContext();
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    if (silenceNode) {
-        try { silenceNode.start(); } catch(e) {}
-    }
-    requestWakeLock();
-    
-    // 音声開始と同時にCanvasループも回す（PiPへのリアルタイムテキスト反映用）
-    startCanvasRenderLoop();
-    
-    speakLoop();
-}
+        function updateExportString() { 
+            const activeNotes = []; 
+            for (let r = 0; r < allTracks.length; r++) {
+                for (let c = 0; c < totalSteps; c++) { 
+                    const val = gridState[r] && gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                    if (val > 0) activeNotes.push(`${r}:${c}:${val}`); 
+                } 
+            }
+            storageBox.value = `V3|${totalSteps}|${activeNotes.join(',')}`; 
+        } 
 
-function stopAudio() {
-    isPlaying = false;
-    synth.cancel();
-    clearTimeout(timeoutId);
-    
-    if (audioCtx && audioCtx.state === 'running') {
-        audioCtx.suspend();
-    }
-    releaseWakeLock();
-    
-    isCanvasLooping = false;
-    
-    const btn = document.getElementById('action-btn');
-    btn.innerText = "START AUDIO";
-    btn.classList.remove('playing');
-    
-    document.getElementById('current-track').innerText = "STOPPED";
-    document.getElementById('now-playing').innerText = "一時停止しました";
-}
+        function parseTrackData(code) {
+            if (!code || typeof code !== 'string') return null;
+            try {
+                let targetSteps = 128; let noteString = "";
+                if (code.startsWith("V3|") || code.startsWith("V2|")) {
+                    const parts = code.split('|'); targetSteps = parseInt(parts[1]) || 128; noteString = parts[2] || "";
+                } else if (code.includes('|')) {
+                    const parts = code.split('|'); targetSteps = parseInt(parts[0]) || 128; noteString = parts[1] || "";
+                } else { noteString = code; }
 
-function speakLoop() {
-    if (!isPlaying) return;
-
-    const randomIndex = Math.floor(Math.random() * database.length);
-    const item = database[randomIndex];
-    
-    const mode = document.getElementById('play-mode').value;
-    const speed = parseFloat(document.getElementById('val-speed').value);
-    const pitch = parseFloat(document.getElementById('val-pitch').value);
-    const selectedVoiceIdx = document.getElementById('voice-select').value;
-    const pauseSec = parseInt(document.getElementById('pause-sec').value) * 1000;
-
-    const trackInfo = document.getElementById('current-track');
-    const display = document.getElementById('now-playing');
-
-    if (item.isTextOnly || mode === 'q') {
-        trackInfo.innerText = item.isTextOnly ? "MODE: TEXT PLAYBACK" : "MODE: QUESTION ONLY";
-        display.innerText = item.q;
-        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
-            timeoutId = setTimeout(speakLoop, pauseSec);
-        });
-    } else if (mode === 'a') {
-        trackInfo.innerText = "MODE: ANSWER ONLY";
-        display.innerText = item.a || "(答えデータなし)";
-        speakText(item.a || "データなし", speed, pitch, selectedVoiceIdx, () => {
-            timeoutId = setTimeout(speakLoop, pauseSec);
-        });
-    } else {
-        trackInfo.innerText = "MODE: SET (QUESTION)";
-        display.innerText = item.q;
-        
-        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
-            if (!isPlaying) return;
-            
-            timeoutId = setTimeout(() => {
-                if (!isPlaying) return;
-                trackInfo.innerText = "MODE: SET (ANSWER)";
-                display.innerText = item.a;
+                if (isNaN(targetSteps) || targetSteps < 4) targetSteps = 128;
+                if (targetSteps > maxSteps) targetSteps = maxSteps;
+                const tempGrid = Array(allTracks.length).fill().map(() => Array(targetSteps).fill(0));
                 
-                speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
-                    timeoutId = setTimeout(speakLoop, pauseSec);
+                if (noteString.trim() !== "") {
+                    noteString.split(',').forEach(coord => {
+                        const xy = coord.split(':');
+                        if (xy.length >= 2) {
+                            const r = parseInt(xy[0]), c = parseInt(xy[1]), type = xy[2] ? parseInt(xy[2]) : 1;
+                            if (r >= 0 && r < allTracks.length && c >= 0 && c < targetSteps) tempGrid[r][c] = type;
+                        }
+                    });
+                }
+                return { steps: targetSteps, grid: tempGrid };
+            } catch(e) { return null; }
+        } 
+
+        document.getElementById('manualLoadBtn').addEventListener('click', (e) => { 
+            e.preventDefault(); const code = storageBox.value.trim(); 
+            if (!code) { showStatus("状態: 空データです", "#ff4444"); return; } 
+            const result = parseTrackData(code);
+            if (result) {
+                totalSteps = result.steps; gridState = result.grid; startFromStep = 0; currentStep = 0; 
+                saveAndRefreshExportString(); buildGrid(); showStatus(`状態: ${totalSteps}歩のデータを復元しました！`, "#00ffff"); 
+            } else { showStatus("状態: 解析失敗（不正な形式）", "#ff4444"); }
+        }); 
+
+        function changeSteps(amount) { 
+            const target = totalSteps + amount; 
+            if (target >= 4 && target <= maxSteps) { 
+                allTracks.forEach((_, r) => {
+                    if (amount > 0) { while (gridState[r].length < target) gridState[r].push(0); } 
+                    else { while (gridState[r].length > target) gridState[r].pop(); }
                 });
-            }, 1000);
-        });
-    }
-}
+                totalSteps = target; 
+                if (currentStep >= totalSteps) currentStep = 0; 
+                if (startFromStep >= totalSteps) startFromStep = 0; 
+                saveAndRefreshExportString(); buildGrid(); showStatus(`状態: 長さを ${totalSteps} 歩に変更しました`, "#ff00ff");
+            } 
+        } 
 
-function speakText(text, speed, pitch, voiceIdx, callback) {
-    synth.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = speed;
-    utterance.pitch = pitch;
-    
-    if (voiceIdx !== "" && voices[voiceIdx]) {
-        utterance.voice = voices[voiceIdx];
-    }
+        document.getElementById('lenPlus').addEventListener('click', () => changeSteps(1)); 
+        document.getElementById('lenPlus10').addEventListener('click', () => changeSteps(10)); 
+        document.getElementById('lenPlus100').addEventListener('click', () => changeSteps(100)); 
+        document.getElementById('lenMinus').addEventListener('click', () => changeSteps(-1)); 
+        document.getElementById('lenMinus10').addEventListener('click', () => changeSteps(-10)); 
+        document.getElementById('lenMinus100').addEventListener('click', () => changeSteps(-100)); 
 
-    utterance.onend = () => {
-        if (isPlaying && callback) {
-            Promise.resolve().then(() => { callback(); });
-        }
-    };
+        // 【音量ブースト調整】 基礎ボリュームの数値を大幅に底上げ
+        function createSynthNode(ctx, track, startTime) { 
+            if (!ctx) return;
+            const osc = ctx.createOscillator(); const gain = ctx.createGain(); 
+            osc.connect(gain); 
+            
+            if (masterGainNode) { gain.connect(masterGainNode); } 
+            else { gain.connect(ctx.destination); }
 
-    utterance.onerror = (e) => {
-        console.error("SpeechSynthesis error", e);
-        if (isPlaying && callback) {
-            Promise.resolve().then(() => { callback(); });
-        }
-    };
+            if (track.sound === 'square') { 
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10); 
+                osc.start(startTime); osc.stop(startTime + 0.10); 
+            } else if (track.sound === 'duty_50') { 
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12); 
+                osc.start(startTime); osc.stop(startTime + 0.12); 
+            } else if (track.sound === 'triangle') { 
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.24, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18); 
+                osc.start(startTime); osc.stop(startTime + 0.18); 
+            } else if (track.sound === 'pulse') { 
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                osc.frequency.linearRampToValueAtTime(20, startTime + 0.07); 
+                gain.gain.setValueAtTime(0.25, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.07); 
+                osc.start(startTime); osc.stop(startTime + 0.07); 
+            } else if (track.sound === 'noise') { 
+                osc.type = 'square'; const baseF = track.freq; 
+                osc.frequency.setValueAtTime(baseF + Math.random() * baseF, startTime); 
+                osc.frequency.linearRampToValueAtTime(30, startTime + 0.04); 
+                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.04); 
+                osc.start(startTime); osc.stop(startTime + 0.04); 
+            } else if (track.sound === 'dpcm_kick') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(110, startTime);
+                osc.frequency.exponentialRampToValueAtTime(20, startTime + 0.09);
+                gain.gain.setValueAtTime(0.55, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
+                osc.start(startTime); osc.stop(startTime + 0.10);
+            } else if (track.sound === 'dpcm_snare') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(200, startTime);
+                osc.frequency.linearRampToValueAtTime(50, startTime + 0.07);
+                gain.gain.setValueAtTime(0.20, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.07);
+                osc.start(startTime); osc.stop(startTime + 0.07);
+            } else if (track.sound === 'sweep_up') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.linearRampToValueAtTime(track.freq * 2.2, startTime + 0.20);
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.20);
+                osc.start(startTime); osc.stop(startTime + 0.20);
+            } else if (track.sound === 'sweep_down') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.linearRampToValueAtTime(60, startTime + 0.22);
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.22);
+                osc.start(startTime); osc.stop(startTime + 0.22);
+            } else if (track.sound === 'coin') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.setValueAtTime(1318.5, startTime + 0.05); 
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.setValueAtTime(0.08, startTime + 0.05);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.22);
+                osc.start(startTime); osc.stop(startTime + 0.22);
+            } else if (track.sound === 'laser') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(100, startTime + 0.10);
+                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
+                osc.start(startTime); osc.stop(startTime + 0.10);
+            } else if (track.sound === 'duty_12') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                gain.gain.setValueAtTime(0.04, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.08);
+                osc.start(startTime); osc.stop(startTime + 0.08);
+            } else if (track.sound === 'duty_25') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12);
+                osc.start(startTime); osc.stop(startTime + 0.12);
+            } else if (track.sound === 'short_noise') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq + (Math.random() * 300), startTime);
+                gain.gain.setValueAtTime(0.15, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.02); 
+                osc.start(startTime); osc.stop(startTime + 0.02);
+            }
+        } 
 
-    synth.speak(utterance);
-    
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-}
+        function scheduler() { 
+            while (nextTickTime < audioCtx.currentTime + 0.12) { 
+                scheduleNextStep(currentStep, nextTickTime); 
+                const secondsPerBeat = 60.0 / bpm; 
+                nextTickTime += secondsPerBeat / 4; 
+                currentStep = (currentStep + 1) % totalSteps; 
+            } 
+            timerId = setTimeout(scheduler, 60); 
+        } 
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker 登録成功:', reg.scope))
-            .catch(err => console.error('Service Worker 登録失敗:', err));
-    });
-}
-</script>
-</body>
+        function scheduleNextStep(step, time) { 
+            if (!freezeVisualCheck.checked) {
+                setTimeout(() => { 
+                    if (lastVisualStep !== -1 && lastVisualStep !== step) {
+                        const oldBar = document.getElementById(`bar-c-${lastVisualStep}`);
+                        if (oldBar) oldBar.classList.remove('current-step');
+                        for (let r = 0; r < allTracks.length; r++) {
+                            const oldBtn = document.getElementById(`note-r-${r}-c-${lastVisualStep}`);
+                            if (oldBtn) oldBtn.classList.remove('current-step');
+                        }
+                    }
+                    const newBar = document.getElementById(`bar-c-${step}`);
+                    if (newBar) newBar.classList.add('current-step');
+                    for (let r = 0; r < allTracks.length; r++) {
+                        const newBtn = document.getElementById(`note-r-${r}-c-${step}`);
+                        if (newBtn) newBtn.classList.add('current-step');
+                    }
+                    lastVisualStep = step; 
+                }, (time - audioCtx.currentTime) * 1000); 
+            }
+
+            const secondsPerBeat = 60.0 / bpm;
+            const stepDuration = secondsPerBeat / 4; 
+
+            allTracks.forEach((track, r) => { 
+                const state = gridState[r] && gridState[r][step] ? parseInt(gridState[r][step]) : 0;
+                if (state > 0) {
+                    const def = NOTE_DEFINITIONS[state];
+                    if (def) {
+                        const divCount = def.pattern.length;
+                        const subDuration = stepDuration / divCount;
+                        def.pattern.forEach((trigger, idx) => {
+                            if (trigger === 1) { createSynthNode(audioCtx, track, time + (idx * subDuration)); }
+                        });
+                    }
+                }
+            }); 
+        } 
+
+        document.getElementById('playBtn').addEventListener('click', (e) => { 
+            initAudioContext();
+            if (isPlaying) { 
+                clearTimeout(timerId); isPlaying = false; 
+                e.target.classList.remove('playing'); 
+                startFromStep = currentStep; 
+                document.querySelectorAll('.current-step').forEach(el => el.classList.remove('current-step'));
+                lastVisualStep = -1;
+            } else { 
+                currentStep = startFromStep; 
+                nextTickTime = audioCtx.currentTime + 0.02; 
+                scheduler(); isPlaying = true; 
+                e.target.classList.add('playing'); 
+            } 
+        }); 
+
+        document.getElementById('bpmSlider').addEventListener('input', (e) => { 
+            bpm = parseInt(e.target.value); document.getElementById('bpmVal').innerText = bpm; 
+        }); 
+
+        document.getElementById('clearBtn').addEventListener('click', () => { 
+            gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+            startFromStep = 0; currentStep = 0; lastVisualStep = -1;
+            saveAndRefreshExportString(); buildGrid(); showStatus("状態: クリアされました", "#ffaa00"); 
+        }); 
+
+        try {
+            const savedState = localStorage.getItem('m8192_ex_v7_state'); 
+            const savedLen = localStorage.getItem('m8192_ex_v7_length'); 
+            if (savedLen) totalSteps = Math.min(parseInt(savedLen), maxSteps); 
+            
+            gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+            if (savedState) { 
+                const parsed = JSON.parse(savedState);
+                if (Array.isArray(parsed)) {
+                    allTracks.forEach((_, r) => {
+                        if (parsed[r] && Array.isArray(parsed[r])) {
+                            for(let c=0; c<totalSteps; c++) {
+                                gridState[r][c] = parsed[r][c] ? parseInt(parsed[r][c]) : 0;
+                            }
+                        }
+                    });
+                }
+            } 
+        } catch(e) { gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); }
+        
+        updatePaletteUI(); buildGrid(); 
+        document.getElementById('exportBtn').addEventListener('click', () => { showStatus("状態: WAV出力はUIシミュレーションモードです", "#ff00ff"); });
+    </script> 
+</body> 
 </html>
