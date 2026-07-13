@@ -70,13 +70,11 @@
         } 
         .sequencer-wrapper { display: inline-flex; position: relative; } 
          
-        /* 【ラベル横幅を従来の約6割へスリム化】 95px ⇒ 58px に縮小 */
         .labels { 
             position: sticky; left: 0; background: #0a0a10; z-index: 50; 
             display: flex; flex-direction: column; gap: 2px; padding-right: 4px; 
             border-right: 2px solid #1a1a2a; margin-top: 24px; 
         } 
-        /* 横幅(width)を58pxにし、フォントサイズや位置を微調整 */
         .label-cell { 
             height: 18px; width: 58px; font-size: 0.48rem; display: flex; 
             align-items: center; justify-content: center; color: #666677; 
@@ -151,7 +149,7 @@
         <div class="panel" id="mainPanel"> 
             <div class="row-flex"> 
                 <button id="playBtn">再生 / 一時停止</button> 
-                
+                 
                 <div class="control-item" style="background: #1a0b14; padding: 2px 6px; border-radius: 4px; border: 1px solid #441a2f;">
                     <label style="color:#ff007f; font-weight:bold;">全体音量:<span id="volVal">80</span>%</label>
                     <input type="range" id="volSlider" min="0" max="100" value="80" style="accent-color: #ff007f; width: 70px;">
@@ -161,7 +159,7 @@
                     <label>BPM:<span id="bpmVal">130</span></label> 
                     <input type="range" id="bpmSlider" min="60" max="240" value="130"> 
                 </div> 
-                 
+                  
                 <div class="control-item" style="background: #12121f; padding: 2px 6px; border-radius: 4px; border: 1px solid #1a1a2a;"> 
                     <label style="color:#aaa;">長さ:</label> 
                     <button class="len-btn huge-step" id="lenMinus100">－100</button> 
@@ -189,7 +187,7 @@
                     <label for="freezeVisualCheck">🎬 描画アニメ停止（音飛び防止・最軽量）</label>
                 </div>
             </div> 
-             
+              
             <div class="row-flex"> 
                 <button class="blue-btn" id="exportBtn">🎵 WAV音声保存</button> 
                 <button id="clearBtn" style="background:#1a1a2a; color:#ff4444;">クリア</button> 
@@ -320,6 +318,9 @@
         const freezeVisualCheck = document.getElementById('freezeVisualCheck');
         const volSlider = document.getElementById('volSlider');
         const volVal = document.getElementById('volVal');
+        const playBtn = document.getElementById('playBtn');
+        const bpmSlider = document.getElementById('bpmSlider');
+        const bpmVal = document.getElementById('bpmVal');
 
         function toggleVisibility(id, btn) {
             const target = document.getElementById(id);
@@ -346,6 +347,11 @@
             if (masterGainNode && audioCtx) {
                 masterGainNode.gain.setValueAtTime(globalVolume, audioCtx.currentTime);
             }
+        });
+
+        bpmSlider.addEventListener('input', (e) => {
+            bpm = parseInt(e.target.value);
+            bpmVal.innerText = bpm;
         });
 
         allTracks.forEach((track) => { 
@@ -541,14 +547,21 @@
         document.getElementById('lenMinus10').addEventListener('click', () => changeSteps(-10)); 
         document.getElementById('lenMinus100').addEventListener('click', () => changeSteps(-100)); 
 
-        // 【音量ブースト調整】 基礎ボリュームの数値を大幅に底上げ
         function createSynthNode(ctx, track, startTime) { 
-            if (!ctx) return;
+            if (!ctx) return null;
             const osc = ctx.createOscillator(); const gain = ctx.createGain(); 
             osc.connect(gain); 
             
-            if (masterGainNode) { gain.connect(masterGainNode); } 
-            else { gain.connect(ctx.destination); }
+            if (ctx instanceof OfflineAudioContext) {
+                // オフラインコンテキストではmasterGainNodeを介さず個別にゲイン調整し宛先に繋ぐ
+                const localGain = ctx.createGain();
+                localGain.gain.setValueAtTime(globalVolume, startTime);
+                gain.connect(localGain);
+                localGain.connect(ctx.destination);
+            } else {
+                if (masterGainNode) { gain.connect(masterGainNode); } 
+                else { gain.connect(ctx.destination); }
+            }
 
             if (track.sound === 'square') { 
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
@@ -571,151 +584,266 @@
                 osc.type = 'square'; const baseF = track.freq; 
                 osc.frequency.setValueAtTime(baseF + Math.random() * baseF, startTime); 
                 osc.frequency.linearRampToValueAtTime(30, startTime + 0.04); 
-                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.04); 
-                osc.start(startTime); osc.stop(startTime + 0.04); 
+                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.04);
+                osc.start(startTime); osc.stop(startTime + 0.04);
+            } else if (track.sound === 'short_noise') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq + Math.random()*400, startTime);
+                gain.gain.setValueAtTime(0.10, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.02);
+                osc.start(startTime); osc.stop(startTime + 0.02);
             } else if (track.sound === 'dpcm_kick') {
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(110, startTime);
-                osc.frequency.exponentialRampToValueAtTime(20, startTime + 0.09);
-                gain.gain.setValueAtTime(0.55, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
-                osc.start(startTime); osc.stop(startTime + 0.10);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(120, startTime);
+                osc.frequency.exponentialRampToValueAtTime(track.freq, startTime + 0.08);
+                gain.gain.setValueAtTime(0.45, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.09);
+                osc.start(startTime); osc.stop(startTime + 0.09);
             } else if (track.sound === 'dpcm_snare') {
-                osc.type = 'square'; osc.frequency.setValueAtTime(200, startTime);
-                osc.frequency.linearRampToValueAtTime(50, startTime + 0.07);
-                gain.gain.setValueAtTime(0.20, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.07);
-                osc.start(startTime); osc.stop(startTime + 0.07);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(250, startTime);
+                osc.frequency.linearRampToValueAtTime(track.freq, startTime + 0.06);
+                gain.gain.setValueAtTime(0.35, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.06);
+                osc.start(startTime); osc.stop(startTime + 0.06);
             } else if (track.sound === 'sweep_up') {
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
-                osc.frequency.linearRampToValueAtTime(track.freq * 2.2, startTime + 0.20);
-                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.20);
-                osc.start(startTime); osc.stop(startTime + 0.20);
+                osc.frequency.linearRampToValueAtTime(track.freq * 4, startTime + 0.15);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.15);
+                osc.start(startTime); osc.stop(startTime + 0.15);
             } else if (track.sound === 'sweep_down') {
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
-                osc.frequency.linearRampToValueAtTime(60, startTime + 0.22);
-                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.22);
-                osc.start(startTime); osc.stop(startTime + 0.22);
+                osc.frequency.linearRampToValueAtTime(40, startTime + 0.18);
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18);
+                osc.start(startTime); osc.stop(startTime + 0.18);
             } else if (track.sound === 'coin') {
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
-                osc.frequency.setValueAtTime(1318.5, startTime + 0.05); 
-                gain.gain.setValueAtTime(0.08, startTime); gain.gain.setValueAtTime(0.08, startTime + 0.05);
-                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.22);
-                osc.start(startTime); osc.stop(startTime + 0.22);
+                osc.frequency.setValueAtTime(1318.51, startTime + 0.07);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.25);
+                osc.start(startTime); osc.stop(startTime + 0.25);
             } else if (track.sound === 'laser') {
                 osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime);
-                osc.frequency.exponentialRampToValueAtTime(100, startTime + 0.10);
-                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
-                osc.start(startTime); osc.stop(startTime + 0.10);
+                osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.12);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12);
+                osc.start(startTime); osc.stop(startTime + 0.12);
             } else if (track.sound === 'duty_12') {
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
-                gain.gain.setValueAtTime(0.04, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.08);
-                osc.start(startTime); osc.stop(startTime + 0.08);
+                gain.gain.setValueAtTime(0.05, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
+                osc.start(startTime); osc.stop(startTime + 0.10);
             } else if (track.sound === 'duty_25') {
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
-                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12);
-                osc.start(startTime); osc.stop(startTime + 0.12);
-            } else if (track.sound === 'short_noise') {
-                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq + (Math.random() * 300), startTime);
-                gain.gain.setValueAtTime(0.15, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.02); 
-                osc.start(startTime); osc.stop(startTime + 0.02);
+                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.11);
+                osc.start(startTime); osc.stop(startTime + 0.11);
             }
-        } 
+            return osc;
+        }
 
         function scheduler() { 
-            while (nextTickTime < audioCtx.currentTime + 0.12) { 
-                scheduleNextStep(currentStep, nextTickTime); 
-                const secondsPerBeat = 60.0 / bpm; 
-                nextTickTime += secondsPerBeat / 4; 
-                currentStep = (currentStep + 1) % totalSteps; 
+            while (nextTickTime < audioCtx.currentTime + 0.1) { 
+                playStep(currentStep, nextTickTime); 
+                nextTick(); 
             } 
-            timerId = setTimeout(scheduler, 60); 
+            timerId = setTimeout(scheduler, 25); 
         } 
 
-        function scheduleNextStep(step, time) { 
-            if (!freezeVisualCheck.checked) {
-                setTimeout(() => { 
-                    if (lastVisualStep !== -1 && lastVisualStep !== step) {
-                        const oldBar = document.getElementById(`bar-c-${lastVisualStep}`);
-                        if (oldBar) oldBar.classList.remove('current-step');
-                        for (let r = 0; r < allTracks.length; r++) {
-                            const oldBtn = document.getElementById(`note-r-${r}-c-${lastVisualStep}`);
-                            if (oldBtn) oldBtn.classList.remove('current-step');
-                        }
-                    }
-                    const newBar = document.getElementById(`bar-c-${step}`);
-                    if (newBar) newBar.classList.add('current-step');
-                    for (let r = 0; r < allTracks.length; r++) {
-                        const newBtn = document.getElementById(`note-r-${r}-c-${step}`);
-                        if (newBtn) newBtn.classList.add('current-step');
-                    }
-                    lastVisualStep = step; 
-                }, (time - audioCtx.currentTime) * 1000); 
-            }
-
-            const secondsPerBeat = 60.0 / bpm;
-            const stepDuration = secondsPerBeat / 4; 
-
+        function playStep(step, time) { 
             allTracks.forEach((track, r) => { 
-                const state = gridState[r] && gridState[r][step] ? parseInt(gridState[r][step]) : 0;
-                if (state > 0) {
-                    const def = NOTE_DEFINITIONS[state];
-                    if (def) {
-                        const divCount = def.pattern.length;
-                        const subDuration = stepDuration / divCount;
-                        def.pattern.forEach((trigger, idx) => {
-                            if (trigger === 1) { createSynthNode(audioCtx, track, time + (idx * subDuration)); }
-                        });
-                    }
-                }
+                const state = gridState[r][step] ? parseInt(gridState[r][step]) : 0; 
+                if (state > 0) { 
+                    const def = NOTE_DEFINITIONS[state]; 
+                    if (def) { 
+                        const stepDuration = 60 / bpm / 4; 
+                        const subDiv = def.pattern.length; 
+                        const subTick = stepDuration / subDiv; 
+                        def.pattern.forEach((trigger, idx) => { 
+                            if (trigger === 1) { createSynthNode(audioCtx, track, time + (idx * subTick)); } 
+                        }); 
+                    } 
+                } 
             }); 
+            if (!freezeVisualCheck.checked) { 
+                requestAnimationFrame(() => updateVisuals(step)); 
+            } 
         } 
 
-        document.getElementById('playBtn').addEventListener('click', (e) => { 
-            initAudioContext();
-            if (isPlaying) { 
-                clearTimeout(timerId); isPlaying = false; 
-                e.target.classList.remove('playing'); 
-                startFromStep = currentStep; 
-                document.querySelectorAll('.current-step').forEach(el => el.classList.remove('current-step'));
-                lastVisualStep = -1;
-            } else { 
-                currentStep = startFromStep; 
-                nextTickTime = audioCtx.currentTime + 0.02; 
-                scheduler(); isPlaying = true; 
-                e.target.classList.add('playing'); 
-            } 
-        }); 
+        function nextTick() { 
+            const secondsPerBeat = 60.0 / bpm; 
+            nextTickTime += 0.25 * secondsPerBeat; 
+            currentStep++; 
+            if (currentStep >= totalSteps) currentStep = 0; 
+        } 
 
-        document.getElementById('bpmSlider').addEventListener('input', (e) => { 
-            bpm = parseInt(e.target.value); document.getElementById('bpmVal').innerText = bpm; 
+        function updateVisuals(step) { 
+            if (lastVisualStep !== -1) { 
+                document.querySelectorAll(`.note-btn[data-col="${lastVisualStep}"]`).forEach(el => el.classList.remove('current-step')); 
+                const prevBar = document.getElementById(`bar-c-${lastVisualStep}`); 
+                if (prevBar) prevBar.classList.remove('current-step'); 
+            } 
+            document.querySelectorAll(`.note-btn[data-col="${step}"]`).forEach(el => el.classList.add('current-step')); 
+            const currBar = document.getElementById(`bar-c-${step}`); 
+            if (currBar) currBar.classList.add('current-step'); 
+            lastVisualStep = step; 
+        } 
+
+        playBtn.addEventListener('click', () => { 
+            initAudioContext(); 
+            isPlaying = !isPlaying; 
+            if (isPlaying) { 
+                playBtn.innerText = "一時停止"; playBtn.classList.add('playing'); 
+                currentStep = startFromStep; nextTickTime = audioCtx.currentTime; 
+                scheduler(); 
+            } else { 
+                playBtn.innerText = "再生 / 一時停止"; playBtn.classList.remove('playing'); 
+                clearTimeout(timerId); 
+            } 
         }); 
 
         document.getElementById('clearBtn').addEventListener('click', () => { 
-            gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
-            startFromStep = 0; currentStep = 0; lastVisualStep = -1;
-            saveAndRefreshExportString(); buildGrid(); showStatus("状態: クリアされました", "#ffaa00"); 
+            if (confirm("シーケンサーを初期化しますか？")) { 
+                gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+                saveAndRefreshExportString(); buildGrid(); showStatus("状態: クリアされました", "#ff4444"); 
+            } 
         }); 
 
-        try {
-            const savedState = localStorage.getItem('m8192_ex_v7_state'); 
-            const savedLen = localStorage.getItem('m8192_ex_v7_length'); 
-            if (savedLen) totalSteps = Math.min(parseInt(savedLen), maxSteps); 
+        // ==========================================
+        //  🎵 WAV音声保存 (エクスポート機能のコア実装)
+        // ==========================================
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            showStatus("状態: 音声レンダリング中...", "#ffcc00");
             
-            gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
-            if (savedState) { 
-                const parsed = JSON.parse(savedState);
-                if (Array.isArray(parsed)) {
-                    allTracks.forEach((_, r) => {
-                        if (parsed[r] && Array.isArray(parsed[r])) {
-                            for(let c=0; c<totalSteps; c++) {
-                                gridState[r][c] = parsed[r][c] ? parseInt(parsed[r][c]) : 0;
-                            }
+            const sampleRate = 44100;
+            const secondsPerBeat = 60.0 / bpm;
+            const stepDuration = 0.25 * secondsPerBeat; // 1歩あたりの秒数
+            const totalDuration = totalSteps * stepDuration + 0.5; // 曲の長さ + 余韻0.5秒
+            
+            // バックグラウンド処理用のOfflineAudioContextを作成
+            const offlineCtx = new OfflineAudioContext(1, sampleRate * totalDuration, sampleRate);
+            
+            // 全てのノートをオフラインコンテキスト上にスケジュール
+            for (let step = 0; step < totalSteps; step++) {
+                const time = step * stepDuration;
+                allTracks.forEach((track, r) => {
+                    const state = gridState[r][step] ? parseInt(gridState[r][step]) : 0;
+                    if (state > 0) {
+                        const def = NOTE_DEFINITIONS[state];
+                        if (def) {
+                            const subDiv = def.pattern.length;
+                            const subTick = stepDuration / subDiv;
+                            def.pattern.forEach((trigger, idx) => {
+                                if (trigger === 1) {
+                                    createSynthNode(offlineCtx, track, time + (idx * subTick));
+                                }
+                            });
                         }
-                    });
-                }
-            } 
-        } catch(e) { gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); }
-        
-        updatePaletteUI(); buildGrid(); 
-        document.getElementById('exportBtn').addEventListener('click', () => { showStatus("状態: WAV出力はUIシミュレーションモードです", "#ff00ff"); });
+                    }
+                });
+            }
+            
+            try {
+                // レンダリング実行
+                const renderedBuffer = await offlineCtx.startRendering();
+                // AudioBuffer から WAV バイナリを作成
+                const wavBlob = bufferToWav(renderedBuffer);
+                
+                // ダウンロード用リンクの生成とクリック処理
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `8bit_studio_export_${Date.now()}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showStatus("状態: WAV書き出し成功！", "#00ffaa");
+            } catch (error) {
+                console.error(error);
+                showStatus("状態: 書き出し失敗", "#ff4444");
+            }
+        });
+
+        // AudioBuffer を RIFF/WAVE フォーマットの Blob に変換する関数
+        function bufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // 1 = 未圧縮PCM
+            const bitDepth = 16; // 16bitで出力
+            
+            let result;
+            if (numOfChan === 2) {
+                result = interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+            } else {
+                result = buffer.getChannelData(0); // モノラル
+            }
+            
+            const bufferLen = result.length;
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numOfChan * bytesPerSample;
+            
+            const arrayBuffer = new ArrayBuffer(44 + bufferLen * bytesPerSample);
+            const view = new DataView(arrayBuffer);
+            
+            /* RIFF identifier */
+            writeString(view, 0, 'RIFF');
+            /* file length */
+            view.setUint32(4, 36 + bufferLen * bytesPerSample, true);
+            /* RIFF type */
+            writeString(view, 8, 'WAVE');
+            /* format chunk identifier */
+            writeString(view, 12, 'fmt ');
+            /* format chunk length */
+            view.setUint32(16, 16, true);
+            /* sample format (raw) */
+            view.setUint16(20, format, true);
+            /* channel count */
+            view.setUint16(22, numOfChan, true);
+            /* sample rate */
+            view.setUint32(24, sampleRate, true);
+            /* byte rate (sample rate * block align) */
+            view.setUint32(28, sampleRate * blockAlign, true);
+            /* block align (channel count * bytes per sample) */
+            view.setUint16(32, blockAlign, true);
+            /* bits per sample */
+            view.setUint16(34, bitDepth, true);
+            /* data chunk identifier */
+            writeString(view, 36, 'data');
+            /* data chunk length */
+            view.setUint32(40, bufferLen * bytesPerSample, true);
+            
+            // 浮動小数点数（-1.0〜1.0）を 16bit符号付き整数（-32768〜32767）に変換して書き込み
+            let offset = 44;
+            for (let i = 0; i < bufferLen; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, result[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function interleave(inputL, inputR) {
+            const length = inputL.length + inputR.length;
+            const result = new Float32Array(length);
+            let index = 0, inputIndex = 0;
+            while (index < length) {
+                result[index++] = inputL[inputIndex];
+                result[index++] = inputR[inputIndex];
+                inputIndex++;
+            }
+            return result;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // 初回起動
+        const savedState = localStorage.getItem('m8192_ex_v7_state'); 
+        const savedLength = localStorage.getItem('m8192_ex_v7_length'); 
+        if (savedLength) totalSteps = parseInt(savedLength); 
+        if (savedState) { 
+            try { 
+                gridState = JSON.parse(savedState); 
+                while(gridState.length < allTracks.length) gridState.push(Array(totalSteps).fill(0)); 
+                gridState.forEach(row => { while(row.length < totalSteps) row.push(0); }); 
+            } catch(e) { gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); } 
+        } 
+        buildGrid(); updatePaletteUI(); 
     </script> 
 </body> 
 </html>
