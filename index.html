@@ -85,6 +85,48 @@
         .label-cell.tri-key { color: #00aaff; }  
         .label-cell.drum-key { color: #00ffff; background: #0b1318; } 
         .label-cell.fx-key { color: #ff00ff; background: #140b18; } 
+        .label-cell.guitar-key {
+    background-color: #4a2c00;
+    color: #ffaa55;
+}
+/* ハイハット (黄系) */
+.note-btn[data-sound="hihat"].active,
+.note-btn[data-sound="openhat"].active {
+    background: #ffee00 !important;
+    box-shadow: 0 0 5px #ffee00;
+    color: #000 !important;
+}
+
+/* クラップ (ピンク系) */
+.note-btn[data-sound="clap"].active {
+    background: #ff007f !important;
+    box-shadow: 0 0 5px #ff007f;
+    color: #fff !important;
+}
+
+/* タム (紫系) */
+.note-btn[data-sound="tom"].active {
+    background: #9d00ff !important;
+    box-shadow: 0 0 5px #9d00ff;
+    color: #fff !important;
+}
+
+/* リムショット (水色系) */
+.note-btn[data-sound="rimshot"].active {
+    background: #00d4ff !important;
+    box-shadow: 0 0 5px #00d4ff;
+    color: #000 !important;
+}
+        /* 🎸 ギターのアクティブ色（オレンジ）を追加 */
+.note-btn[data-sound="guitar"].active { 
+    background: #ff8800 !important; 
+    box-shadow: 0 0 5px #ff8800; 
+    color: #000 !important; 
+}
+
+.note-btn.guitar-bg {
+    background-color: #2a1f1a; /* 少し茶色がかかった背景 */
+}
 
         .sequencer-main { display: flex; flex-direction: column; } 
          
@@ -270,6 +312,36 @@
         allTracks.push({ name: 'LASER-FX', freq: 1500, type: 'fx', sound: 'laser', isBlack: false });
         allTracks.push({ name: 'DUTY-12.5', freq: 440, type: 'fx', sound: 'duty_12', isBlack: false });
         allTracks.push({ name: 'DUTY-25%', freq: 440, type: 'fx', sound: 'duty_25', isBlack: false });
+        for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(EG)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'guitar',
+        isBlack: name.includes('#')
+    });
+}
+
+// 🥁 追加のドラムパーツ
+allTracks.push({ name: 'HH-CLOSE', freq: 8000, type: 'drum', sound: 'hihat_close', isBlack: false });
+allTracks.push({ name: 'HH-OPEN',  freq: 8000, type: 'drum', sound: 'hihat_open',  isBlack: false });
+allTracks.push({ name: 'SNARE-HD', freq: 220,  type: 'drum', sound: 'snare_hd',    isBlack: false });
+allTracks.push({ name: 'KICK-DEEP',freq: 130,  type: 'drum', sound: 'kick_deep',   isBlack: false });
+// 🥁 拡張ドラム・パーカッションパーツ
+allTracks.push({ name: 'HH-CLOSE',  freq: 8000, type: 'drum', sound: 'hihat_close', isBlack: false });
+allTracks.push({ name: 'HH-OPEN',   freq: 8000, type: 'drum', sound: 'hihat_open',  isBlack: false });
+allTracks.push({ name: 'CLAP',      freq: 1200, type: 'drum', sound: 'clap',        isBlack: false });
+allTracks.push({ name: 'TOM-HIGH',  freq: 200,  type: 'drum', sound: 'tom_hi',      isBlack: false });
+allTracks.push({ name: 'TOM-MID',   freq: 140,  type: 'drum', sound: 'tom_mid',     isBlack: false });
+allTracks.push({ name: 'TOM-LOW',   freq: 90,   type: 'drum', sound: 'tom_low',     isBlack: false });
+allTracks.push({ name: 'RIMSHOT',   freq: 800,  type: 'drum', sound: 'rimshot',     isBlack: false });
+allTracks.push({ name: 'CYMBAL',    freq: 6000, type: 'drum', sound: 'cymbal',      isBlack: false });
+allTracks.push({ name: 'SNARE-HD',  freq: 220,  type: 'drum', sound: 'snare_hd',    isBlack: false });
+allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep',   isBlack: false });
 
         const NOTE_DEFINITIONS = {
             1: { label: '通常',    pattern: [1],             category: 'normal' },
@@ -359,6 +431,7 @@
             lbl.classList.add('label-cell'); 
             if (track.isBlack) lbl.classList.add('black-key'); 
             if (track.sound === 'triangle') lbl.classList.add('tri-key'); 
+            if (track.sound === 'guitar') lbl.classList.add('guitar-key');
             if (track.type === 'drum') lbl.classList.add('drum-key'); 
             if (track.type === 'fx') lbl.classList.add('fx-key'); 
             lbl.innerText = track.name; 
@@ -628,6 +701,211 @@
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
                 gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.11);
                 osc.start(startTime); osc.stop(startTime + 0.11);
+            } else if (track.sound === 'guitar') {
+    // 🎸 ディストーション（歪み）＋ アンプフィルター付きエレキギター
+
+    // ① 原音オシレーター（Sawtooth波）
+    osc.type = 'sawtooth';
+    // ピッキング瞬間のわずかなピッチズレ（弦を弾くアタック）
+    osc.frequency.setValueAtTime(track.freq * 1.08, startTime);
+    osc.frequency.exponentialRampToValueAtTime(track.freq, startTime + 0.02);
+
+    // ② ディストーション（音を強烈に歪ませて「ジャーン」というギター感を作る）
+    const distortion = ctx.createWaveShaper();
+    const amount = 40; // 歪みの強さ（20〜100で調整可能）
+    const samples = 44100;
+    const curve = new Float32Array(samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < samples; ++i) {
+        let x = (i * 2) / samples - 1;
+        curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
+    }
+    distortion.curve = curve;
+    distortion.oversample = '4x';
+
+    // ③ ローパスフィルター（ギターアンプのスピーカー特性：耳障りな高音を切って太い音にする）
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, startTime); // 2.2kHz以上をカット
+    filter.Q.setValueAtTime(2.5, startTime);           // 中音域（鳴り）を強調
+
+    // ④ アタックノイズ（ピックが弦に当たる「コンッ」という打音）
+    const noiseOsc = ctx.createOscillator();
+    const noiseGain = ctx.createGain();
+    noiseOsc.type = 'square';
+    noiseOsc.frequency.setValueAtTime(track.freq * 2.5, startTime);
+    noiseGain.gain.setValueAtTime(0.12, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.015);
+
+    // ⑤ 音の配線: osc -> 歪み -> フィルター -> Gain(アンプ)
+    osc.connect(distortion);
+    distortion.connect(filter);
+    filter.connect(gain);
+
+    // ノイズ配線
+    noiseOsc.connect(noiseGain);
+    if (ctx instanceof OfflineAudioContext) {
+        noiseGain.connect(ctx.destination);
+    } else {
+        noiseGain.connect(masterGainNode || ctx.destination);
+    }
+
+    // ⑥ 音量の減衰（サステインと余韻）
+    gain.gain.setValueAtTime(0.22, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.45);
+    noiseOsc.start(startTime);
+    noiseOsc.stop(startTime + 0.015);
+} else if (track.sound === 'hihat_close') {
+                // 🥁 クローズハイハット：超高音ノイズの短音
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 4000, startTime);
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.03);
+                osc.start(startTime);
+                osc.stop(startTime + 0.03);
+
+            // --- ドラム系の条件分岐に追加 ---
+
+} else if (track.sound === 'hihat_close') {
+    // 1️⃣ クローズドハイハット
+    const bufferSize = ctx.sampleRate * 0.04;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 7000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.25, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
+    noise.start(startTime);
+
+} else if (track.sound === 'hihat_open') {
+    // 2️⃣ オープンハイハット
+    const bufferSize = ctx.sampleRate * 0.25;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 6000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.25, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
+    noise.start(startTime);
+
+} else if (track.sound === 'clap') {
+    // 3️⃣ ハンドクラップ
+    const bufferSize = ctx.sampleRate * 0.18;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = track.freq || 1200;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    // アタックの3連打表現
+    gain.gain.setValueAtTime(0.2, startTime);
+    gain.gain.setValueAtTime(0.01, startTime + 0.01);
+    gain.gain.setValueAtTime(0.2, startTime + 0.02);
+    gain.gain.setValueAtTime(0.01, startTime + 0.03);
+    gain.gain.setValueAtTime(0.25, startTime + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16);
+    noise.start(startTime);
+
+} else if (track.sound === 'tom_hi' || track.sound === 'tom_mid' || track.sound === 'tom_low') {
+    // 4️⃣ タム（High / Mid / Low）
+    osc.type = 'sine';
+    const baseFreq = track.freq || 120;
+    osc.frequency.setValueAtTime(baseFreq * 2.2, startTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq, startTime + 0.12);
+
+    gain.gain.setValueAtTime(0.35, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.22);
+
+} else if (track.sound === 'rimshot') {
+    // 5️⃣ リムショット
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(track.freq || 800, startTime);
+    osc.frequency.exponentialRampToValueAtTime(200, startTime + 0.015);
+
+    gain.gain.setValueAtTime(0.3, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.025);
+
+} else if (track.sound === 'cymbal') {
+    // 6️⃣ クラッシュシンバル（長めの広帯域ノイズ）
+    const bufferSize = ctx.sampleRate * 0.6;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 5000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.3, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.55);
+    noise.start(startTime);
+} else if (track.sound === 'hihat_open') {
+                // 🥁 オープンハイハット：余韻のある高音ノイズ
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 3000, startTime);
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.15);
+                osc.start(startTime);
+                osc.stop(startTime + 0.15);
+
+            } else if (track.sound === 'snare_hd') {
+                // 🥁 リアルスネア：スナッピー（ノイズ）成分の再現
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 1200, startTime);
+                osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.08);
+                gain.gain.setValueAtTime(0.25, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.08);
+                osc.start(startTime);
+                osc.stop(startTime + 0.08);
+
+            } else if (track.sound === 'kick_deep') {
+                // 🥁 重低音キック：Sine波の急激なピッチダウン（808系キック）
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(20, startTime + 0.12);
+                gain.gain.setValueAtTime(0.50, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.14);
+                osc.start(startTime);
+                osc.stop(startTime + 0.14);
             }
             return osc;
         }
