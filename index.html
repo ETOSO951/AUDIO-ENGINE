@@ -103,14 +103,26 @@
     box-shadow: 0 0 5px #ff007f;
     color: #fff !important;
 }
-
+/* 🎺 トランペット用アクティブスタイル（ゴールド光彩） */
+.note-btn[data-sound="trumpet"].active { 
+    background: linear-gradient(135deg, #fff066, #ffaa00) !important; 
+    box-shadow: 0 0 8px #ffbb00, inset 0 0 3px #ffffff !important; 
+    color: #000 !important; 
+    font-weight: bold;
+}
 /* タム (紫系) */
 .note-btn[data-sound="tom"].active {
     background: #9d00ff !important;
     box-shadow: 0 0 5px #9d00ff;
     color: #fff !important;
 }
-
+/* 🪈 フルート用アクティブスタイル（爽やかなミントグリーン） */
+.note-btn[data-sound="flute"].active { 
+    background: linear-gradient(135deg, #a8ff78, #78ffd6) !important; 
+    box-shadow: 0 0 8px #78ffd6, inset 0 0 3px #ffffff !important; 
+    color: #000 !important; 
+    font-weight: bold;
+}
 /* リムショット (水色系) */
 .note-btn[data-sound="rimshot"].active {
     background: #00d4ff !important;
@@ -325,7 +337,34 @@
         isBlack: name.includes('#')
     });
 }
-
+// 🎺 トランペット（全音階：C3〜E6程度をカバー）
+for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(TP)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'trumpet',
+        isBlack: name.includes('#')
+    });
+}
+// 🪈 フルート（全音階：C4〜C7あたりをカバーする高音域向け）
+for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(FL)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'flute',
+        isBlack: name.includes('#')
+    });
+}
 // 🥁 追加のドラムパーツ
 allTracks.push({ name: 'HH-CLOSE', freq: 8000, type: 'drum', sound: 'hihat_close', isBlack: false });
 allTracks.push({ name: 'HH-OPEN',  freq: 8000, type: 'drum', sound: 'hihat_open',  isBlack: false });
@@ -701,7 +740,95 @@ allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep'
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
                 gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.11);
                 osc.start(startTime); osc.stop(startTime + 0.11);
-            } else if (track.sound === 'guitar') {
+            } else if (track.sound === 'trumpet') {
+    // 🎺 トランペットサウンド（2つのノコギリ波 ＋ アンプ/フィルターエンベロープ）
+
+    // ① 主音源（のこぎり波で豊かな倍音を作る）
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(track.freq, startTime);
+
+    // ② わずかにデチューン（音をズラす）した副音源で、金管特有の「響き・厚み」を出す
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(track.freq * 1.003, startTime); // わずかに高め
+
+    // ③ バンドパス/ローパスフィルター（息を吹き込んだ瞬間に明るく開き、音が減衰すると落ち着く）
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    
+    // 吹き始めのアタック（フィルターを開いて華やかな高音を出す）
+    filter.frequency.setValueAtTime(track.freq * 1.5, startTime);
+    filter.frequency.exponentialRampToValueAtTime(track.freq * 6.5, startTime + 0.05); // アタックの「パッ」という鳴り
+    filter.frequency.exponentialRampToValueAtTime(track.freq * 3.0, startTime + 0.3);
+    filter.Q.setValueAtTime(3.0, startTime); // 金管らしいレゾナンス（癖）
+
+    // 音源をフィルターに配線
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+
+    // ④ エンベロープ（音量変化：立ち上がりが鋭く、一定の立ち上がりを維持）
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(0.3, startTime + 0.03); // 鋭いアタック
+    gain.gain.setValueAtTime(0.22, startTime + 0.08);        // サステイン（持続）
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45); // リリース（余韻）
+
+    osc.start(startTime);   osc2.start(startTime);
+    osc.stop(startTime + 0.45); osc2.stop(startTime + 0.45);
+} else if (track.sound === 'flute') {
+    // 🪈 フルートサウンド（サイン波＋三角波 ＋ ブレスノイズ）
+
+    // ① 主音源（丸みのある澄んだ音を作るためにサイン波と三角波をブレンド）
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(track.freq, startTime);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(track.freq, startTime);
+    const gain2 = ctx.createGain();
+    gain2.gain.value = 0.3; // 三角波でわずかな倍音を足す
+
+    // ② ブレスノイズ（吹いた時の「シュー」という空気音）
+    const bufferSize = ctx.sampleRate * 0.15;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    // ノイズをフルートの音域付近に絞るバンドパスフィルター
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(track.freq * 1.5, startTime);
+    noiseFilter.Q.value = 2.0;
+
+    const noiseGain = ctx.createGain();
+    // アタック時（吹き始め）にノイズを少し多めに出す
+    noiseGain.gain.setValueAtTime(0.08, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12);
+
+    // 配線
+    osc.connect(gain);
+    osc2.connect(gain2);
+    gain2.connect(gain);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    if (ctx instanceof OfflineAudioContext) {
+        noiseGain.connect(ctx.destination);
+    } else {
+        noiseGain.connect(masterGainNode || ctx.destination);
+    }
+
+    // ③ 音量エンベロープ（柔らかい立ち上がりと滑らかな余韻）
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(0.28, startTime + 0.05); // 柔らかいアタック
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.5);  // すーっと消える余韻
+
+    osc.start(startTime);   osc2.start(startTime);   noise.start(startTime);
+    osc.stop(startTime + 0.5); osc2.stop(startTime + 0.5); noise.stop(startTime + 0.12);
+} else if (track.sound === 'guitar') {
     // 🎸 ディストーション（歪み）＋ アンプフィルター付きエレキギター
 
     // ① 原音オシレーター（Sawtooth波）
