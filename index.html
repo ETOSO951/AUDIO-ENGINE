@@ -585,8 +585,8 @@ allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep'
         } 
 
         function saveAndRefreshExportString() { 
-            localStorage.setItem('m8192_ex_v7_state', JSON.stringify(gridState)); 
-            localStorage.setItem('m8192_ex_v7_length', totalSteps.toString()); 
+            localStorage.setItem('m8192_ex_v8_state', JSON.stringify(gridState)); 
+            localStorage.setItem('m8192_ex_v8_length', totalSteps.toString()); 
             updateExportString(); 
         } 
 
@@ -1238,8 +1238,8 @@ allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep'
         }
 
         // 初回起動
-        const savedState = localStorage.getItem('m8192_ex_v7_state'); 
-        const savedLength = localStorage.getItem('m8192_ex_v7_length'); 
+        const savedState = localStorage.getItem('m8192_ex_v8_state'); 
+        const savedLength = localStorage.getItem('m8192_ex_v8_length'); 
         if (savedLength) totalSteps = parseInt(savedLength); 
         if (savedState) { 
             try { 
