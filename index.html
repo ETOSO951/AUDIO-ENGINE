@@ -341,7 +341,7 @@
 for (let midi = 76; midi >= 40; midi--) {
     const octave = Math.floor(midi / 12) - 1;
     const name = noteNames[midi % 12] + octave + "(TP)";
-    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    const freq = 140 * Math.pow(2, (midi - 69) / 12);
     
     allTracks.push({
         name: name,
