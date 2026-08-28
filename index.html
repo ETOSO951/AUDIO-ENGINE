@@ -287,25 +287,25 @@
         for (let midi = 108; midi >= 85; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave; 
-            const freq = 840 * Math.pow(2, (midi - 69) / 12); 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
             allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'square', isBlack: name.includes('#') }); 
         }
         for (let midi = 84; midi >= 55; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(M)"; 
-            const freq = 840 * Math.pow(2, (midi - 69) / 12); 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
             allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'duty_50', isBlack: name.includes('#') }); 
         } 
         for (let midi = 54; midi >= 39; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(Tri)"; 
-            const freq = 840 * Math.pow(2, (midi - 69) / 12); 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
             allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
         } 
         for (let midi = 38; midi >= 21; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(Sub)"; 
-            const freq = 840 * Math.pow(2, (midi - 69) / 12); 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
             allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
         }
 
@@ -677,15 +677,15 @@ allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep'
 
             if (track.sound === 'square') { 
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
-                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10); 
+                gain.gain.setValueAtTime(0.16, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10); 
                 osc.start(startTime); osc.stop(startTime + 0.10); 
             } else if (track.sound === 'duty_50') { 
                 osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime); 
-                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12); 
+                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12); 
                 osc.start(startTime); osc.stop(startTime + 0.12); 
             } else if (track.sound === 'triangle') { 
                 osc.type = 'triangle'; osc.frequency.setValueAtTime(track.freq, startTime); 
-                gain.gain.setValueAtTime(0.24, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18); 
+                gain.gain.setValueAtTime(0.48, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18); 
                 osc.start(startTime); osc.stop(startTime + 0.18); 
             } else if (track.sound === 'pulse') { 
                 osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
