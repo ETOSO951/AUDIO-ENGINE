@@ -288,25 +288,25 @@
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave; 
             const freq = 440 * Math.pow(2, (midi - 69) / 12); 
-            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'square', isBlack: name.includes('#') }); 
         }
         for (let midi = 84; midi >= 55; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(M)"; 
             const freq = 440 * Math.pow(2, (midi - 69) / 12); 
-            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'duty_50', isBlack: name.includes('#') }); 
         } 
         for (let midi = 54; midi >= 39; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(Tri)"; 
             const freq = 440 * Math.pow(2, (midi - 69) / 12); 
-            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
         } 
         for (let midi = 38; midi >= 21; midi--) { 
             const octave = Math.floor(midi / 12) - 1; 
             const name = noteNames[midi % 12] + octave + "(Sub)"; 
             const freq = 440 * Math.pow(2, (midi - 69) / 12); 
-            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'triangle', isBlack: name.includes('#') }); 
         }
 
         allTracks.push({ name: 'NOISE-H', freq: 950, type: 'drum', sound: 'noise', isBlack: false }); 
