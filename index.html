@@ -1,431 +1,1234 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WAV Audio Editor</title>
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --danger: #ef4444;
+<!DOCTYPE html> 
+<html lang="ja"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
+    <title>8-Bit Monster Studio 8192 - EX V7.8 BOOST</title> 
+    <style> 
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; } 
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background-color: #040406; color: #f0f0f5; margin: 0; padding: 10px; 
+            display: flex; flex-direction: column; align-items: center; height: 100vh; 
+        } 
+        h1 { font-size: 1.1rem; margin: 2px 0 6px 0; color: #ff00ff; letter-spacing: 2px; font-weight: 900; } 
+         
+        .section-wrapper { width: 100%; max-width: 1100px; margin-bottom: 6px; }
+        .toggle-section-btn {
+            background: #1a1a2a; color: #ffaa00; border: 1px solid #2d2d44;
+            padding: 3px 8px; font-size: 0.65rem; border-radius: 4px; cursor: pointer;
+            font-weight: bold; margin-bottom: 3px; display: inline-block;
         }
+        .toggle-section-btn:hover { background: #22223a; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        .panel { 
+            background: #0a0a10; width: 100%;
+            padding: 10px; border-radius: 8px; 
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; 
+            border: 1px solid #1a1a2a; 
+        } 
+        .row-flex { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } 
+        button { 
+            background: #ff007f; color: #fff; border: none; padding: 8px 12px; 
+            font-size: 0.8rem; font-weight: bold; border-radius: 4px; cursor: pointer; 
+        } 
+        button.playing { background: #00ffff; color: #000; } 
+        button.blue-btn { background: #007fff; color: white; } 
+         
+        .control-item { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; } 
+        input[type="range"] { width: 300px; accent-color: #ff007f; } 
+        select { background: #13131f; color: #fff; border: 1px solid #2d2d44; padding: 6px; font-size: 0.8rem; border-radius: 4px; font-weight: bold; } 
+         
+        .len-btn { background: #1a1a2a; color: #fff; padding: 5px 6px; font-size: 0.7rem; border: 1px solid #2d2d44; font-family: monospace; } 
+        .len-btn.big-step { color: #ffaa00; font-weight: bold; } 
+        .len-btn.huge-step { color: #00ffff; font-weight: bold; } 
+        .len-display { font-family: monospace; font-weight: bold; color: #ff00ff; min-width: 75px; text-align: center; font-size: 0.85rem; } 
+
+        .palette-container {
+            width: 100%; background: #0e0e1a; padding: 6px 10px;
+            border-radius: 6px; border: 1px solid #22223a;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding: 16px;
-            max-width: 600px;
-            margin: 0 auto;
-            min-height: 100vh;
+        .palette-title { font-size: 0.75rem; font-weight: bold; color: #ffaa00; }
+        .palette-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+        .p-btn {
+            background: #1c1c30; color: #ccc; border: 1px solid #333352; padding: 4px 8px;
+            font-size: 0.7rem; font-family: monospace; border-radius: 4px; cursor: pointer;
         }
+        .p-btn.selected { background: #00ffaa; color: #000; font-weight: bold; border-color: #fff; }
 
-        h1 {
-            font-size: 1.5rem;
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--text);
-        }
+        .jump-container { 
+            display: flex; gap: 4px; overflow-x: auto; width: 100%; max-width: 1100px; 
+            background: #07070a; padding: 6px; border-radius: 6px; margin-bottom: 4px; 
+            white-space: nowrap; -webkit-overflow-scrolling: touch; 
+        } 
+        .jump-btn { background: #13131f; color: #ccc; border: 1px solid #222235; padding: 5px 10px; font-size: 0.7rem; border-radius: 4px; flex-shrink: 0; } 
 
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border);
-        }
+        .grid-container { 
+            width: 100%; max-width: 1100px; flex: 1; overflow: auto; 
+            background: #0a0a10; padding: 6px; border-radius: 8px; border: 1px solid #1a1a2a; 
+        } 
+        .sequencer-wrapper { display: inline-flex; position: relative; } 
+         
+        .labels { 
+            position: sticky; left: 0; background: #0a0a10; z-index: 50; 
+            display: flex; flex-direction: column; gap: 2px; padding-right: 4px; 
+            border-right: 2px solid #1a1a2a; margin-top: 24px; 
+        } 
+        .label-cell { 
+            height: 18px; width: 58px; font-size: 0.48rem; display: flex; 
+            align-items: center; justify-content: center; color: #666677; 
+            font-family: monospace; font-weight: bold; background: #0a0a10; 
+            letter-spacing: -0.5px; overflow: hidden; white-space: nowrap;
+        } 
+        .label-cell.black-key { color: #ffaa00; background: #110e14; } 
+        .label-cell.tri-key { color: #00aaff; }  
+        .label-cell.drum-key { color: #00ffff; background: #0b1318; } 
+        .label-cell.fx-key { color: #ff00ff; background: #140b18; } 
+        .label-cell.guitar-key {
+    background-color: #4a2c00;
+    color: #ffaa55;
+}
+/* ハイハット (黄系) */
+.note-btn[data-sound="hihat"].active,
+.note-btn[data-sound="openhat"].active {
+    background: #ffee00 !important;
+    box-shadow: 0 0 5px #ffee00;
+    color: #000 !important;
+}
 
-        .file-input-wrapper {
-            position: relative;
-            display: block;
-            width: 100%;
-            padding: 16px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 2px dashed var(--border);
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
+/* クラップ (ピンク系) */
+.note-btn[data-sound="clap"].active {
+    background: #ff007f !important;
+    box-shadow: 0 0 5px #ff007f;
+    color: #fff !important;
+}
+/* 🎺 トランペット用アクティブスタイル（ゴールド光彩） */
+.note-btn[data-sound="trumpet"].active { 
+    background: linear-gradient(135deg, #fff066, #ffaa00) !important; 
+    box-shadow: 0 0 8px #ffbb00, inset 0 0 3px #ffffff !important; 
+    color: #000 !important; 
+    font-weight: bold;
+}
+/* タム (紫系) */
+.note-btn[data-sound="tom"].active {
+    background: #9d00ff !important;
+    box-shadow: 0 0 5px #9d00ff;
+    color: #fff !important;
+}
+/* 🪈 フルート用アクティブスタイル（爽やかなミントグリーン） */
+.note-btn[data-sound="flute"].active { 
+    background: linear-gradient(135deg, #a8ff78, #78ffd6) !important; 
+    box-shadow: 0 0 8px #78ffd6, inset 0 0 3px #ffffff !important; 
+    color: #000 !important; 
+    font-weight: bold;
+}
+/* リムショット (水色系) */
+.note-btn[data-sound="rimshot"].active {
+    background: #00d4ff !important;
+    box-shadow: 0 0 5px #00d4ff;
+    color: #000 !important;
+}
+        /* 🎸 ギターのアクティブ色（オレンジ）を追加 */
+.note-btn[data-sound="guitar"].active { 
+    background: #ff8800 !important; 
+    box-shadow: 0 0 5px #ff8800; 
+    color: #000 !important; 
+}
 
-        .file-input-wrapper input {
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
+.note-btn.guitar-bg {
+    background-color: #2a1f1a; /* 少し茶色がかかった背景 */
+}
 
-        .btn {
-            display: inline-block;
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            transition: background-color 0.2s;
-        }
+        .sequencer-main { display: flex; flex-direction: column; } 
+         
+        .timeline-bar { 
+            display: grid; gap: 2px; height: 22px; margin-bottom: 2px; 
+            position: sticky; top: 0; background: #0a0a10; z-index: 10; 
+        } 
+        .bar-cell { 
+            background: #181826; color: #777; font-size: 0.55rem; font-family: monospace; 
+            text-align: center; line-height: 22px; cursor: pointer; border-radius: 2px; font-weight: bold; 
+        } 
+        .bar-cell.start-marker { background: #ff00ff; color: #fff; }  
 
-        .btn:disabled {
-            background-color: var(--border);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
+        .sequencer { display: grid; gap: 2px; } 
+         
+        .note-btn { 
+            height: 18px; width: 34px; border-radius: 2px; cursor: pointer; 
+            background: #12121f; border: 1px solid rgba(255,255,255,0.01); 
+            font-size: 0.45rem; font-family: monospace; font-weight: bold; 
+            color: rgba(255, 255, 255, 0.9); text-align: center; line-height: 16px; 
+            overflow: hidden; text-overflow: clip; white-space: nowrap;
+        } 
+        .note-btn.black-bg { background: #08080f; }  
+         
+        .note-btn.active { display: block !important; }
+        .note-btn[data-sound="square"].active { background: #ff007f !important; box-shadow: 0 0 5px #ff007f; color: #fff !important; } 
+        .note-btn[data-sound="duty_50"].active { background: #ff4500 !important; box-shadow: 0 0 5px #ff4500; color: #fff !important; } 
+        .note-btn[data-sound="triangle"].active { background: #00aaff !important; box-shadow: 0 0 5px #00aaff; color: #fff !important; } 
+        .note-btn[data-type="drum"].active { background: #00ffff !important; box-shadow: 0 0 5px #00ffff; color: #000 !important; } 
+        .note-btn[data-type="fx"].active { background: #ff00ff !important; box-shadow: 0 0 5px #ff00ff; color: #fff !important; } 
 
-        .file-list {
-            list-style: none;
-            margin-bottom: 16px;
-        }
-
-        .file-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .file-name {
-            font-size: 0.9rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 60%;
-        }
-
-        .file-controls {
-            display: flex;
-            gap: 6px;
-        }
-
-        .btn-mini {
-            background: var(--border);
-            color: var(--text);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .range-container {
-            margin: 16px 0;
-        }
-
-        .range-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            accent-color: var(--primary);
-        }
-
-        audio {
-            width: 100%;
-            margin-top: 12px;
-            border-radius: 6px;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>WAV Audio Editor</h1>
-
-    <div class="card">
-        <label class="file-input-wrapper">
-            <span>ファイルを選択 (複数可)</span>
-            <input type="file" id="audioFiles" accept="audio/wav,audio/x-wav" multiple>
-        </label>
-        <ul id="fileList" class="file-list"></ul>
-    </div>
-
-    <div class="card" id="trimSection" style="display: none;">
-        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">トリミング設定</h2>
+        .note-btn.custom-note { filter: saturate(1.5) brightness(1.2); border: 1px solid rgba(255,255,255,0.7) !important; }
         
-        <div class="range-container">
-            <div class="range-label">
-                <span>開始位置</span>
-                <span id="startTimeLabel">0.00 秒</span>
-            </div>
-            <input type="range" id="startRange" min="0" value="0" step="0.01">
-        </div>
+        .note-btn.current-step, .bar-cell.current-step { filter: brightness(1.8) !important; border: 1px solid #fff !important; } 
+        .note-btn.beat-line { border-left: 1px solid #2a2a3f; } 
 
-        <div class="range-container">
-            <div class="range-label">
-                <span>終了位置</span>
-                <span id="endTimeLabel">0.00 秒</span>
-            </div>
-            <input type="range" id="endRange" min="0" value="0" step="0.01">
+        .ultra-light-mode-box {
+            background: #1e120c; border: 1px solid #ffaa00; padding: 4px 10px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: bold; color: #ffcc00; display: flex; align-items: center; gap: 5px;
+        }
+
+        .storage-panel { 
+            width: 100%; background: #0a0a10; padding: 8px; 
+            border-radius: 6px; border: 1px solid #1a1a2a; 
+            display: flex; flex-direction: column; gap: 4px; 
+        } 
+        .storage-title { font-size: 0.7rem; color: #aaa; font-weight: bold; display: flex; justify-content: space-between; align-items: center; } 
+        .status-msg { margin-right: 8px; font-weight: normal; transition: color 0.3s; } 
+        .storage-box { 
+            width: 100%; background: #040406; color: #00ffff; border: 1px solid #1a1a2a; 
+            padding: 6px; font-family: monospace; font-size: 0.65rem; border-radius: 4px; 
+            resize: none; -webkit-user-select: text; user-select: text; 
+        } 
+    </style> 
+</head> 
+<body> 
+
+    <h1>8-BIT MONSTER STUDIO 8192 - EX V7.8 BOOST</h1> 
+
+    <div class="section-wrapper">
+        <button class="toggle-section-btn" onclick="toggleVisibility('mainPanel', this)">▼ コントロールパネルを閉じる</button>
+        <div class="panel" id="mainPanel"> 
+            <div class="row-flex"> 
+                <button id="playBtn">再生 / 一時停止</button> 
+                 
+                <div class="control-item" style="background: #1a0b14; padding: 2px 6px; border-radius: 4px; border: 1px solid #441a2f;">
+                    <label style="color:#ff007f; font-weight:bold;">全体音量:<span id="volVal">80</span>%</label>
+                    <input type="range" id="volSlider" min="0" max="500" value="80" style="accent-color: #ff007f; width: 70px;">
+                </div>
+
+                <div class="control-item"> 
+                    <label>BPM:<span id="bpmVal">130</span></label> 
+                    <input type="range" id="bpmSlider" min="40" max="360" value="130"> 
+                </div> 
+                  
+                <div class="control-item" style="background: #12121f; padding: 2px 6px; border-radius: 4px; border: 1px solid #1a1a2a;"> 
+                    <label style="color:#aaa;">長さ:</label> 
+                    <button class="len-btn huge-step" id="lenMinus100">－100</button> 
+                    <button class="len-btn big-step" id="lenMinus10">－10</button> 
+                    <button class="len-btn" id="lenMinus">－1</button> 
+                    <span class="len-display" id="lenDisplay">128 歩</span> 
+                    <button class="len-btn" id="lenPlus">＋1</button> 
+                    <button class="len-btn big-step" id="lenPlus10">＋10</button> 
+                    <button class="len-btn huge-step" id="lenPlus100">＋100</button> 
+                </div> 
+
+                <div class="control-item">
+                    <label style="color:#ffaa00; font-weight:bold;">音符カスタム:</label>
+                    <select id="customTypeSelect">
+                        <option value="none">なし (通常音符 ON/OFF)</option>
+                        <option value="roll">連打系 (x2, x3, x4, x5, x6)</option>
+                        <option value="div23">2分割・3分割の変則</option>
+                        <option value="div4">4分割の変則 (16分裏など)</option>
+                        <option value="all">すべてのカスタム音符を表示</option>
+                    </select>
+                </div>
+
+                <div class="ultra-light-mode-box">
+                    <input type="checkbox" id="freezeVisualCheck" checked>
+                    <label for="freezeVisualCheck">🎬 描画アニメ停止（音飛び防止・最軽量）</label>
+                </div>
+            </div> 
+              
+            <div class="row-flex"> 
+                <button class="blue-btn" id="exportBtn">🎵 WAV音声保存</button> 
+                <button id="clearBtn" style="background:#1a1a2a; color:#ff4444;">クリア</button> 
+            </div> 
+        </div> 
+    </div>
+
+    <div class="section-wrapper" id="paletteWrapper" style="display: none;">
+        <button class="toggle-section-btn" onclick="toggleVisibility('paletteContainer', this)">▼ カスタムパレットを閉じる</button>
+        <div class="palette-container" id="paletteContainer">
+            <span class="palette-title">カスタム選択:</span>
+            <div class="palette-buttons" id="paletteButtons"></div>
         </div>
     </div>
 
-    <div class="card">
-        <button id="processBtn" class="btn" disabled>書き出す (トリミング・結合)</button>
-        <div id="outputContainer" style="margin-top: 16px; display: none;">
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">プレビュー / ダウンロード:</p>
-            <audio id="audioPreview" controls></audio>
-            <a id="downloadBtn" class="btn" style="margin-top: 12px; text-decoration: none; background-color: #10b981;">ファイルをダウンロード</a>
-        </div>
+    <div class="jump-container" id="jumpContainer"></div> 
+
+    <div class="grid-container" id="gridContainer"> 
+        <div class="sequencer-wrapper"> 
+            <div class="labels" id="labelsContainer"></div> 
+            <div class="sequencer-main"> 
+                <div class="timeline-bar" id="timelineBar"></div> 
+                <div class="sequencer" id="sequencer"></div> 
+            </div> 
+        </div> 
+    </div> 
+
+    <div class="section-wrapper" style="margin-top: 6px;">
+        <button class="toggle-section-btn" onclick="toggleVisibility('storagePanel', this)">▼ バックアップ欄を閉じる</button>
+        <div class="storage-panel" id="storagePanel"> 
+            <div class="storage-title"> 
+                <div>💾 バックアップ <span class="status-msg" id="statusMsg" style="color:#00ffff;">状態: 正常起動完了</span></div> 
+                <button id="manualLoadBtn" style="background:#1a1a2a; padding: 4px 10px; font-size:0.7rem; color:#fff;">コードから読み込む</button> 
+            </div> 
+            <textarea class="storage-box" id="storageBox" rows="2" placeholder="ここにデータを貼り付けて読込ボタンを押してください" onclick="this.select();"></textarea> 
+        </div> 
     </div>
 
-    <script>
-        const audioFileInput = document.getElementById('audioFiles');
-        const fileListEl = document.getElementById('fileList');
-        const trimSection = document.getElementById('trimSection');
-        const startRange = document.getElementById('startRange');
-        const endRange = document.getElementById('endRange');
-        const startTimeLabel = document.getElementById('startTimeLabel');
-        const endTimeLabel = document.getElementById('endTimeLabel');
-        const processBtn = document.getElementById('processBtn');
-        const outputContainer = document.getElementById('outputContainer');
-        const audioPreview = document.getElementById('audioPreview');
-        const downloadBtn = document.getElementById('downloadBtn');
+    <script> 
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']; 
+        const allTracks = []; 
+         
+        for (let midi = 108; midi >= 85; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+        }
+        for (let midi = 84; midi >= 55; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(M)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+        } 
+        for (let midi = 54; midi >= 39; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(Tri)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+        } 
+        for (let midi = 38; midi >= 21; midi--) { 
+            const octave = Math.floor(midi / 12) - 1; 
+            const name = noteNames[midi % 12] + octave + "(Sub)"; 
+            const freq = 440 * Math.pow(2, (midi - 69) / 12); 
+            allTracks.push({ name: name, freq: freq, type: 'synth', sound: 'trumpet', isBlack: name.includes('#') }); 
+        }
 
-        let audioFiles = [];
-        let totalDuration = 0;
-        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        allTracks.push({ name: 'NOISE-H', freq: 950, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'NOISE-M', freq: 550, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'NOISE-L', freq: 250, type: 'drum', sound: 'noise', isBlack: false }); 
+        allTracks.push({ name: 'METAL-N', freq: 1200, type: 'drum', sound: 'short_noise', isBlack: false });
+        allTracks.push({ name: 'PULSE-H', freq: 150, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'PULSE-M', freq: 95, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'PULSE-L', freq: 55, type: 'drum', sound: 'pulse', isBlack: false }); 
+        allTracks.push({ name: 'DPCM-KICK', freq: 45, type: 'drum', sound: 'dpcm_kick', isBlack: false });
+        allTracks.push({ name: 'DPCM-SNARE', freq: 120, type: 'drum', sound: 'dpcm_snare', isBlack: false });
+        allTracks.push({ name: 'SWEEP-UP', freq: 200, type: 'fx', sound: 'sweep_up', isBlack: false });
+        allTracks.push({ name: 'SWEEP-DOWN', freq: 800, type: 'fx', sound: 'sweep_down', isBlack: false });
+        allTracks.push({ name: 'COIN-FX', freq: 988, type: 'fx', sound: 'coin', isBlack: false });
+        allTracks.push({ name: 'LASER-FX', freq: 1500, type: 'fx', sound: 'laser', isBlack: false });
+        allTracks.push({ name: 'DUTY-12.5', freq: 440, type: 'fx', sound: 'duty_12', isBlack: false });
+        allTracks.push({ name: 'DUTY-25%', freq: 440, type: 'fx', sound: 'duty_25', isBlack: false });
+        for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(EG)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'guitar',
+        isBlack: name.includes('#')
+    });
+}
+// 🎺 トランペット（全音階：C3〜E6程度をカバー）
+for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(TP)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'trumpet',
+        isBlack: name.includes('#')
+    });
+}
+// 🪈 フルート（全音階：C4〜C7あたりをカバーする高音域向け）
+for (let midi = 76; midi >= 40; midi--) {
+    const octave = Math.floor(midi / 12) - 1;
+    const name = noteNames[midi % 12] + octave + "(FL)";
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    
+    allTracks.push({
+        name: name,
+        freq: freq,
+        type: 'synth',
+        sound: 'flute',
+        isBlack: name.includes('#')
+    });
+}
+// 🥁 追加のドラムパーツ
+allTracks.push({ name: 'HH-CLOSE', freq: 8000, type: 'drum', sound: 'hihat_close', isBlack: false });
+allTracks.push({ name: 'HH-OPEN',  freq: 8000, type: 'drum', sound: 'hihat_open',  isBlack: false });
+allTracks.push({ name: 'SNARE-HD', freq: 220,  type: 'drum', sound: 'snare_hd',    isBlack: false });
+allTracks.push({ name: 'KICK-DEEP',freq: 130,  type: 'drum', sound: 'kick_deep',   isBlack: false });
+// 🥁 拡張ドラム・パーカッションパーツ
+allTracks.push({ name: 'HH-CLOSE',  freq: 8000, type: 'drum', sound: 'hihat_close', isBlack: false });
+allTracks.push({ name: 'HH-OPEN',   freq: 8000, type: 'drum', sound: 'hihat_open',  isBlack: false });
+allTracks.push({ name: 'CLAP',      freq: 1200, type: 'drum', sound: 'clap',        isBlack: false });
+allTracks.push({ name: 'TOM-HIGH',  freq: 200,  type: 'drum', sound: 'tom_hi',      isBlack: false });
+allTracks.push({ name: 'TOM-MID',   freq: 140,  type: 'drum', sound: 'tom_mid',     isBlack: false });
+allTracks.push({ name: 'TOM-LOW',   freq: 90,   type: 'drum', sound: 'tom_low',     isBlack: false });
+allTracks.push({ name: 'RIMSHOT',   freq: 800,  type: 'drum', sound: 'rimshot',     isBlack: false });
+allTracks.push({ name: 'CYMBAL',    freq: 6000, type: 'drum', sound: 'cymbal',      isBlack: false });
+allTracks.push({ name: 'SNARE-HD',  freq: 220,  type: 'drum', sound: 'snare_hd',    isBlack: false });
+allTracks.push({ name: 'KICK-DEEP', freq: 130,  type: 'drum', sound: 'kick_deep',   isBlack: false });
 
-        audioFileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            files.forEach(file => {
-                if (file.type.includes('wav') || file.name.endsWith('.wav')) {
-                    audioFiles.push(file);
-                }
-            });
-            audioFileInput.value = '';
-            updateFileList();
+        const NOTE_DEFINITIONS = {
+            1: { label: '通常',    pattern: [1],             category: 'normal' },
+            2: { label: 'x2',      pattern: [1, 1],          category: 'roll' },
+            3: { label: 'x3',      pattern: [1, 1, 1],       category: 'roll' },
+            4: { label: 'x4',      pattern: [1, 1, 1, 1],    category: 'roll' },
+            5: { label: 'x5',      pattern: [1, 1, 1, 1, 1], category: 'roll' },
+            6: { label: 'x6',      pattern: [1, 1, 1, 1, 1, 1], category: 'roll' },
+            7: { label: '1/2',     pattern: [1, 0],          category: 'div23' },
+            8: { label: '2/2',     pattern: [0, 1],          category: 'div23' },
+            9: { label: '1/3',     pattern: [1, 0, 0],       category: 'div23' },
+            10: { label: '2/3',    pattern: [0, 1, 0],       category: 'div23' },
+            11: { label: '3/3',    pattern: [0, 0, 1],       category: 'div23' },
+            12: { label: '1&3',    pattern: [1, 0, 1],       category: 'div23' },
+            13: { label: '1/4',    pattern: [1, 0, 0, 0],    category: 'div4' },
+            14: { label: '2/4',    pattern: [0, 1, 0, 0],    category: 'div4' },
+            15: { label: '3/4',    pattern: [0, 0, 1, 0],    category: 'div4' },
+            16: { label: '4/4',    pattern: [0, 0, 0, 1],    category: 'div4' },
+            17: { label: '1&4',    pattern: [1, 0, 0, 1],    category: 'div4' },
+            18: { label: '裏打',   pattern: [0, 1, 0, 1],    category: 'div4' }
+        };
+
+        const maxSteps = 8192; 
+        let totalSteps = 128; 
+        let gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+         
+        let isPlaying = false, currentStep = 0, nextTickTime = 0.0, timerId = null, audioCtx = null, masterGainNode = null; 
+        let startFromStep = 0; 
+        let bpm = 130; 
+        let currentSelectedCustomId = 1; 
+        let lastVisualStep = -1; 
+        let globalVolume = 0.8; 
+
+        const sequencerEl = document.getElementById('sequencer'); 
+        const timelineBar = document.getElementById('timelineBar'); 
+        const labelsContainer = document.getElementById('labelsContainer'); 
+        const jumpContainer = document.getElementById('jumpContainer'); 
+        const gridContainer = document.getElementById('gridContainer'); 
+        const lenDisplay = document.getElementById('lenDisplay'); 
+        const storageBox = document.getElementById('storageBox'); 
+        const statusMsg = document.getElementById('statusMsg'); 
+        const customTypeSelect = document.getElementById('customTypeSelect');
+        const paletteWrapper = document.getElementById('paletteWrapper');
+        const paletteContainer = document.getElementById('paletteContainer');
+        const paletteButtons = document.getElementById('paletteButtons');
+        const freezeVisualCheck = document.getElementById('freezeVisualCheck');
+        const volSlider = document.getElementById('volSlider');
+        const volVal = document.getElementById('volVal');
+        const playBtn = document.getElementById('playBtn');
+        const bpmSlider = document.getElementById('bpmSlider');
+        const bpmVal = document.getElementById('bpmVal');
+
+        function toggleVisibility(id, btn) {
+            const target = document.getElementById(id);
+            const isHidden = target.style.display === 'none';
+            target.style.display = isHidden ? (id === 'paletteContainer' ? 'flex' : '') : 'none';
+            const baseName = btn.innerText.replace(/[▼▶]\s*|を(閉じる|開く)/g, '');
+            btn.innerText = isHidden ? `▼ ${baseName}を閉じる` : `▶ ${baseName}を開く`;
+        }
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGainNode = audioCtx.createGain();
+                masterGainNode.gain.setValueAtTime(globalVolume, audioCtx.currentTime);
+                masterGainNode.connect(audioCtx.destination);
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        volSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            volVal.innerText = val;
+            globalVolume = val / 100;
+            if (masterGainNode && audioCtx) {
+                masterGainNode.gain.setValueAtTime(globalVolume, audioCtx.currentTime);
+            }
         });
 
-        function updateFileList() {
-            fileListEl.innerHTML = '';
-            audioFiles.forEach((file, index) => {
-                const li = document.createElement('li');
-                li.className = 'file-item';
-                li.innerHTML = `
-                    <span class="file-name">${index + 1}. ${file.name}</span>
-                    <div class="file-controls">
-                        <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === audioFiles.length - 1 ? 'disabled' : ''}>▼</button>
-                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
-                    </div>
-                `;
-                fileListEl.appendChild(li);
+        bpmSlider.addEventListener('input', (e) => {
+            bpm = parseInt(e.target.value);
+            bpmVal.innerText = bpm;
+        });
+
+        allTracks.forEach((track) => { 
+            const lbl = document.createElement('div'); 
+            lbl.classList.add('label-cell'); 
+            if (track.isBlack) lbl.classList.add('black-key'); 
+            if (track.sound === 'triangle') lbl.classList.add('tri-key'); 
+            if (track.sound === 'guitar') lbl.classList.add('guitar-key');
+            if (track.type === 'drum') lbl.classList.add('drum-key'); 
+            if (track.type === 'fx') lbl.classList.add('fx-key'); 
+            lbl.innerText = track.name; 
+            labelsContainer.appendChild(lbl); 
+        }); 
+
+        function showStatus(text, color) { 
+            statusMsg.innerText = text; 
+            statusMsg.style.color = color; 
+        } 
+
+        function updatePaletteUI() {
+            const mode = customTypeSelect.value;
+            paletteButtons.innerHTML = '';
+            if (mode === 'none') { paletteWrapper.style.display = 'none'; currentSelectedCustomId = 1; return; }
+            paletteWrapper.style.display = '';
+            paletteContainer.style.display = 'flex';
+            createPaletteButton(1);
+            Object.keys(NOTE_DEFINITIONS).forEach(id => {
+                const numId = parseInt(id);
+                if (numId === 1) return;
+                const def = NOTE_DEFINITIONS[numId];
+                if (mode === 'all' || mode === def.category) createPaletteButton(numId);
             });
+        }
 
-            if (audioFiles.length > 0) {
-                calculateTotalDuration();
-            } else {
-                trimSection.style.display = 'none';
-                processBtn.disabled = true;
+        function createPaletteButton(numId) {
+            const def = NOTE_DEFINITIONS[numId];
+            const pBtn = document.createElement('button');
+            pBtn.classList.add('p-btn');
+            pBtn.innerText = `${def.label} [${def.pattern.join('')}]`;
+            if (currentSelectedCustomId === numId) pBtn.classList.add('selected');
+            pBtn.addEventListener('click', () => { currentSelectedCustomId = numId; updatePaletteUI(); });
+            paletteButtons.appendChild(pBtn);
+        }
+
+        customTypeSelect.addEventListener('change', () => { updatePaletteUI(); });
+
+        function buildGrid() { 
+            sequencerEl.innerHTML = ''; 
+            timelineBar.innerHTML = ''; 
+            sequencerEl.style.gridTemplateColumns = `repeat(${totalSteps}, 34px)`; 
+            timelineBar.style.gridTemplateColumns = `repeat(${totalSteps}, 34px)`; 
+            lenDisplay.innerText = `${totalSteps} 歩`; 
+
+            for (let c = 0; c < totalSteps; c++) { 
+                const barCell = document.createElement('div'); 
+                barCell.classList.add('bar-cell'); 
+                barCell.id = `bar-c-${c}`; 
+                barCell.innerText = (c % 16 === 0) ? `【${c+1}】` : c + 1; 
+                if (c === startFromStep) barCell.classList.add('start-marker'); 
+
+                barCell.addEventListener('click', () => { 
+                    startFromStep = c; currentStep = c; 
+                    document.querySelectorAll('.bar-cell').forEach(cell => cell.classList.remove('start-marker')); 
+                    barCell.classList.add('start-marker'); 
+                }); 
+                timelineBar.appendChild(barCell); 
+            } 
+
+            allTracks.forEach((track, r) => { 
+                for (let c = 0; c < totalSteps; c++) { 
+                    const btn = document.createElement('div'); 
+                    btn.classList.add('note-btn'); 
+                    btn.id = `note-r-${r}-c-${c}`; 
+                    if (track.isBlack) btn.classList.add('black-bg'); 
+                    if (c % 4 === 0 && c > 0) btn.classList.add('beat-line'); 
+                     
+                    btn.dataset.row = r; btn.dataset.col = c; 
+                    btn.dataset.type = track.type; btn.dataset.sound = track.sound;
+
+                    const currentVal = gridState[r] && gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                    updateButtonVisual(btn, currentVal);
+
+                    btn.addEventListener('click', (e) => { 
+                        e.preventDefault(); initAudioContext(); 
+                        const mode = customTypeSelect.value;
+                        let currentState = gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                        if (mode === 'none') { gridState[r][c] = (currentState > 0) ? 0 : 1; } 
+                        else { gridState[r][c] = (currentState === currentSelectedCustomId) ? 0 : currentSelectedCustomId; }
+                        
+                        updateButtonVisual(btn, gridState[r][c]);
+                        if (gridState[r][c] > 0) { createSynthNode(audioCtx, track, audioCtx.currentTime); } 
+                        saveAndRefreshExportString(); 
+                    }); 
+                    sequencerEl.appendChild(btn); 
+                } 
+            }); 
+            buildJumpButtons(); updateExportString(); 
+        } 
+
+        function updateButtonVisual(btn, state) {
+            btn.classList.remove('active', 'custom-note'); btn.innerText = '';
+            if (state > 0) {
+                btn.classList.add('active');
+                const def = NOTE_DEFINITIONS[state];
+                if (def && state !== 1) { btn.classList.add('custom-note'); btn.innerText = def.label.trim(); }
             }
         }
 
-        window.moveFile = function(index, direction) {
-            const targetIndex = index + direction;
-            if (targetIndex >= 0 && targetIndex < audioFiles.length) {
-                const temp = audioFiles[index];
-                audioFiles[index] = audioFiles[targetIndex];
-                audioFiles[targetIndex] = temp;
-                updateFileList();
+        function buildJumpButtons() { 
+            jumpContainer.innerHTML = ''; 
+            const chunk = 64; 
+            const buttonCount = Math.ceil(totalSteps / chunk); 
+            for (let i = 0; i < buttonCount; i++) { 
+                const start = i * chunk + 1; 
+                const btn = document.createElement('button'); 
+                btn.classList.add('jump-btn'); btn.innerText = `${start}～`; 
+                btn.addEventListener('click', () => { gridContainer.scrollTo({ left: i * chunk * 34, behavior: 'smooth' }); }); 
+                jumpContainer.appendChild(btn); 
+            } 
+        } 
+
+        function saveAndRefreshExportString() { 
+            localStorage.setItem('m8192_ex_v8_state', JSON.stringify(gridState)); 
+            localStorage.setItem('m8192_ex_v8_length', totalSteps.toString()); 
+            updateExportString(); 
+        } 
+
+        function updateExportString() { 
+            const activeNotes = []; 
+            for (let r = 0; r < allTracks.length; r++) {
+                for (let c = 0; c < totalSteps; c++) { 
+                    const val = gridState[r] && gridState[r][c] ? parseInt(gridState[r][c]) : 0;
+                    if (val > 0) activeNotes.push(`${r}:${c}:${val}`); 
+                } 
             }
-        };
+            storageBox.value = `V3|${totalSteps}|${activeNotes.join(',')}`; 
+        } 
 
-        window.removeFile = function(index) {
-            audioFiles.splice(index, 1);
-            updateFileList();
-        };
-
-        async function calculateTotalDuration() {
-            totalDuration = 0;
-            for (let file of audioFiles) {
-                const arrayBuffer = await file.arrayBuffer();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                totalDuration += audioBuffer.duration;
-            }
-
-            startRange.max = totalDuration;
-            endRange.max = totalDuration;
-            startRange.value = 0;
-            endRange.value = totalDuration;
-
-            updateRangeLabels();
-            trimSection.style.display = 'block';
-            processBtn.disabled = false;
-        }
-
-        function updateRangeLabels() {
-            let start = parseFloat(startRange.value);
-            let end = parseFloat(endRange.value);
-
-            if (start >= end) {
-                start = end - 0.01;
-                startRange.value = Math.max(0, start);
-            }
-
-            startTimeLabel.textContent = `${parseFloat(startRange.value).toFixed(2)} 秒`;
-            endTimeLabel.textContent = `${parseFloat(endRange.value).toFixed(2)} 秒`;
-        }
-
-        startRange.addEventListener('input', updateRangeLabels);
-        endRange.addEventListener('input', updateRangeLabels);
-
-        processBtn.addEventListener('click', async () => {
-            processBtn.disabled = true;
-            processBtn.textContent = '処理中...';
-
+        function parseTrackData(code) {
+            if (!code || typeof code !== 'string') return null;
             try {
-                const buffers = [];
-                for (let file of audioFiles) {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const decodedData = await audioContext.decodeAudioData(arrayBuffer);
-                    buffers.push(decodedData);
+                let targetSteps = 128; let noteString = "";
+                if (code.startsWith("V3|") || code.startsWith("V2|")) {
+                    const parts = code.split('|'); targetSteps = parseInt(parts[1]) || 128; noteString = parts[2] || "";
+                } else if (code.includes('|')) {
+                    const parts = code.split('|'); targetSteps = parseInt(parts[0]) || 128; noteString = parts[1] || "";
+                } else { noteString = code; }
+
+                if (isNaN(targetSteps) || targetSteps < 4) targetSteps = 128;
+                if (targetSteps > maxSteps) targetSteps = maxSteps;
+                const tempGrid = Array(allTracks.length).fill().map(() => Array(targetSteps).fill(0));
+                
+                if (noteString.trim() !== "") {
+                    noteString.split(',').forEach(coord => {
+                        const xy = coord.split(':');
+                        if (xy.length >= 2) {
+                            const r = parseInt(xy[0]), c = parseInt(xy[1]), type = xy[2] ? parseInt(xy[2]) : 1;
+                            if (r >= 0 && r < allTracks.length && c >= 0 && c < targetSteps) tempGrid[r][c] = type;
+                        }
+                    });
                 }
+                return { steps: targetSteps, grid: tempGrid };
+            } catch(e) { return null; }
+        } 
 
-                // トラックを1つのバッファに結合
-                const sampleRate = buffers[0].sampleRate;
-                const numberOfChannels = buffers[0].numberOfChannels;
-                const totalSamples = buffers.reduce((acc, buf) => acc + buf.length, 0);
+        document.getElementById('manualLoadBtn').addEventListener('click', (e) => { 
+            e.preventDefault(); const code = storageBox.value.trim(); 
+            if (!code) { showStatus("状態: 空データです", "#ff4444"); return; } 
+            const result = parseTrackData(code);
+            if (result) {
+                totalSteps = result.steps; gridState = result.grid; startFromStep = 0; currentStep = 0; 
+                saveAndRefreshExportString(); buildGrid(); showStatus(`状態: ${totalSteps}歩のデータを復元しました！`, "#00ffff"); 
+            } else { showStatus("状態: 解析失敗（不正な形式）", "#ff4444"); }
+        }); 
 
-                const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalSamples, sampleRate);
+        function changeSteps(amount) { 
+            const target = totalSteps + amount; 
+            if (target >= 4 && target <= maxSteps) { 
+                allTracks.forEach((_, r) => {
+                    if (amount > 0) { while (gridState[r].length < target) gridState[r].push(0); } 
+                    else { while (gridState[r].length > target) gridState[r].pop(); }
+                });
+                totalSteps = target; 
+                if (currentStep >= totalSteps) currentStep = 0; 
+                if (startFromStep >= totalSteps) startFromStep = 0; 
+                saveAndRefreshExportString(); buildGrid(); showStatus(`状態: 長さを ${totalSteps} 歩に変更しました`, "#ff00ff");
+            } 
+        } 
 
-                for (let channel = 0; channel < numberOfChannels; channel++) {
-                    const outputData = mergedBuffer.getChannelData(channel);
-                    let offset = 0;
-                    for (let buf of buffers) {
-                        const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
-                        outputData.set(channelData, offset);
-                        offset += buf.length;
+        document.getElementById('lenPlus').addEventListener('click', () => changeSteps(1)); 
+        document.getElementById('lenPlus10').addEventListener('click', () => changeSteps(10)); 
+        document.getElementById('lenPlus100').addEventListener('click', () => changeSteps(100)); 
+        document.getElementById('lenMinus').addEventListener('click', () => changeSteps(-1)); 
+        document.getElementById('lenMinus10').addEventListener('click', () => changeSteps(-10)); 
+        document.getElementById('lenMinus100').addEventListener('click', () => changeSteps(-100)); 
+
+        function createSynthNode(ctx, track, startTime) { 
+            if (!ctx) return null;
+            const osc = ctx.createOscillator(); const gain = ctx.createGain(); 
+            osc.connect(gain); 
+            
+            if (ctx instanceof OfflineAudioContext) {
+                // オフラインコンテキストではmasterGainNodeを介さず個別にゲイン調整し宛先に繋ぐ
+                const localGain = ctx.createGain();
+                localGain.gain.setValueAtTime(globalVolume, startTime);
+                gain.connect(localGain);
+                localGain.connect(ctx.destination);
+            } else {
+                if (masterGainNode) { gain.connect(masterGainNode); } 
+                else { gain.connect(ctx.destination); }
+            }
+
+            if (track.sound === 'square') { 
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.16, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10); 
+                osc.start(startTime); osc.stop(startTime + 0.10); 
+            } else if (track.sound === 'duty_50') { 
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12); 
+                osc.start(startTime); osc.stop(startTime + 0.12); 
+            } else if (track.sound === 'triangle') { 
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                gain.gain.setValueAtTime(0.48, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18); 
+                osc.start(startTime); osc.stop(startTime + 0.18); 
+            } else if (track.sound === 'pulse') { 
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime); 
+                osc.frequency.linearRampToValueAtTime(20, startTime + 0.07); 
+                gain.gain.setValueAtTime(0.25, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.07); 
+                osc.start(startTime); osc.stop(startTime + 0.07); 
+            } else if (track.sound === 'noise') { 
+                osc.type = 'square'; const baseF = track.freq; 
+                osc.frequency.setValueAtTime(baseF + Math.random() * baseF, startTime); 
+                osc.frequency.linearRampToValueAtTime(30, startTime + 0.04); 
+                gain.gain.setValueAtTime(0.12, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.04);
+                osc.start(startTime); osc.stop(startTime + 0.04);
+            } else if (track.sound === 'short_noise') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq + Math.random()*400, startTime);
+                gain.gain.setValueAtTime(0.10, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.02);
+                osc.start(startTime); osc.stop(startTime + 0.02);
+            } else if (track.sound === 'dpcm_kick') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(120, startTime);
+                osc.frequency.exponentialRampToValueAtTime(track.freq, startTime + 0.08);
+                gain.gain.setValueAtTime(0.45, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.09);
+                osc.start(startTime); osc.stop(startTime + 0.09);
+            } else if (track.sound === 'dpcm_snare') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(250, startTime);
+                osc.frequency.linearRampToValueAtTime(track.freq, startTime + 0.06);
+                gain.gain.setValueAtTime(0.35, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.06);
+                osc.start(startTime); osc.stop(startTime + 0.06);
+            } else if (track.sound === 'sweep_up') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.linearRampToValueAtTime(track.freq * 4, startTime + 0.15);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.15);
+                osc.start(startTime); osc.stop(startTime + 0.15);
+            } else if (track.sound === 'sweep_down') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.linearRampToValueAtTime(40, startTime + 0.18);
+                gain.gain.setValueAtTime(0.08, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.18);
+                osc.start(startTime); osc.stop(startTime + 0.18);
+            } else if (track.sound === 'coin') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.setValueAtTime(1318.51, startTime + 0.07);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.25);
+                osc.start(startTime); osc.stop(startTime + 0.25);
+            } else if (track.sound === 'laser') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(60, startTime + 0.12);
+                gain.gain.setValueAtTime(0.07, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.12);
+                osc.start(startTime); osc.stop(startTime + 0.12);
+            } else if (track.sound === 'duty_12') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                gain.gain.setValueAtTime(0.05, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.10);
+                osc.start(startTime); osc.stop(startTime + 0.10);
+            } else if (track.sound === 'duty_25') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(track.freq, startTime);
+                gain.gain.setValueAtTime(0.06, startTime); gain.gain.linearRampToValueAtTime(0.001, startTime + 0.11);
+                osc.start(startTime); osc.stop(startTime + 0.11);
+            } else if (track.sound === 'trumpet') {
+    // 🎺 トランペットサウンド（2つのノコギリ波 ＋ アンプ/フィルターエンベロープ）
+
+    // ① 主音源（のこぎり波で豊かな倍音を作る）
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(track.freq, startTime);
+
+    // ② わずかにデチューン（音をズラす）した副音源で、金管特有の「響き・厚み」を出す
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(track.freq * 1.003, startTime); // わずかに高め
+
+    // ③ バンドパス/ローパスフィルター（息を吹き込んだ瞬間に明るく開き、音が減衰すると落ち着く）
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    
+    // 吹き始めのアタック（フィルターを開いて華やかな高音を出す）
+    filter.frequency.setValueAtTime(track.freq * 1.5, startTime);
+    filter.frequency.exponentialRampToValueAtTime(track.freq * 6.5, startTime + 0.05); // アタックの「パッ」という鳴り
+    filter.frequency.exponentialRampToValueAtTime(track.freq * 3.0, startTime + 0.3);
+    filter.Q.setValueAtTime(3.0, startTime); // 金管らしいレゾナンス（癖）
+
+    // 音源をフィルターに配線
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+
+    // ④ エンベロープ（音量変化：立ち上がりが鋭く、一定の立ち上がりを維持）
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(0.3, startTime + 0.03); // 鋭いアタック
+    gain.gain.setValueAtTime(0.22, startTime + 0.08);        // サステイン（持続）
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45); // リリース（余韻）
+
+    osc.start(startTime);   osc2.start(startTime);
+    osc.stop(startTime + 0.45); osc2.stop(startTime + 0.45);
+} else if (track.sound === 'flute') {
+    // 🪈 フルートサウンド（サイン波＋三角波 ＋ ブレスノイズ）
+
+    // ① 主音源（丸みのある澄んだ音を作るためにサイン波と三角波をブレンド）
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(track.freq, startTime);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(track.freq, startTime);
+    const gain2 = ctx.createGain();
+    gain2.gain.value = 0.3; // 三角波でわずかな倍音を足す
+
+    // ② ブレスノイズ（吹いた時の「シュー」という空気音）
+    const bufferSize = ctx.sampleRate * 0.15;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    // ノイズをフルートの音域付近に絞るバンドパスフィルター
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(track.freq * 1.5, startTime);
+    noiseFilter.Q.value = 2.0;
+
+    const noiseGain = ctx.createGain();
+    // アタック時（吹き始め）にノイズを少し多めに出す
+    noiseGain.gain.setValueAtTime(0.08, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12);
+
+    // 配線
+    osc.connect(gain);
+    osc2.connect(gain2);
+    gain2.connect(gain);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    if (ctx instanceof OfflineAudioContext) {
+        noiseGain.connect(ctx.destination);
+    } else {
+        noiseGain.connect(masterGainNode || ctx.destination);
+    }
+
+    // ③ 音量エンベロープ（柔らかい立ち上がりと滑らかな余韻）
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.linearRampToValueAtTime(0.28, startTime + 0.05); // 柔らかいアタック
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.5);  // すーっと消える余韻
+
+    osc.start(startTime);   osc2.start(startTime);   noise.start(startTime);
+    osc.stop(startTime + 0.5); osc2.stop(startTime + 0.5); noise.stop(startTime + 0.12);
+} else if (track.sound === 'guitar') {
+    // 🎸 ディストーション（歪み）＋ アンプフィルター付きエレキギター
+
+    // ① 原音オシレーター（Sawtooth波）
+    osc.type = 'sawtooth';
+    // ピッキング瞬間のわずかなピッチズレ（弦を弾くアタック）
+    osc.frequency.setValueAtTime(track.freq * 1.08, startTime);
+    osc.frequency.exponentialRampToValueAtTime(track.freq, startTime + 0.02);
+
+    // ② ディストーション（音を強烈に歪ませて「ジャーン」というギター感を作る）
+    const distortion = ctx.createWaveShaper();
+    const amount = 40; // 歪みの強さ（20〜100で調整可能）
+    const samples = 44100;
+    const curve = new Float32Array(samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < samples; ++i) {
+        let x = (i * 2) / samples - 1;
+        curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
+    }
+    distortion.curve = curve;
+    distortion.oversample = '4x';
+
+    // ③ ローパスフィルター（ギターアンプのスピーカー特性：耳障りな高音を切って太い音にする）
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, startTime); // 2.2kHz以上をカット
+    filter.Q.setValueAtTime(2.5, startTime);           // 中音域（鳴り）を強調
+
+    // ④ アタックノイズ（ピックが弦に当たる「コンッ」という打音）
+    const noiseOsc = ctx.createOscillator();
+    const noiseGain = ctx.createGain();
+    noiseOsc.type = 'square';
+    noiseOsc.frequency.setValueAtTime(track.freq * 2.5, startTime);
+    noiseGain.gain.setValueAtTime(0.12, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.015);
+
+    // ⑤ 音の配線: osc -> 歪み -> フィルター -> Gain(アンプ)
+    osc.connect(distortion);
+    distortion.connect(filter);
+    filter.connect(gain);
+
+    // ノイズ配線
+    noiseOsc.connect(noiseGain);
+    if (ctx instanceof OfflineAudioContext) {
+        noiseGain.connect(ctx.destination);
+    } else {
+        noiseGain.connect(masterGainNode || ctx.destination);
+    }
+
+    // ⑥ 音量の減衰（サステインと余韻）
+    gain.gain.setValueAtTime(0.22, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.45);
+    noiseOsc.start(startTime);
+    noiseOsc.stop(startTime + 0.015);
+} else if (track.sound === 'hihat_close') {
+                // 🥁 クローズハイハット：超高音ノイズの短音
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 4000, startTime);
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.03);
+                osc.start(startTime);
+                osc.stop(startTime + 0.03);
+
+            // --- ドラム系の条件分岐に追加 ---
+
+} else if (track.sound === 'hihat_close') {
+    // 1️⃣ クローズドハイハット
+    const bufferSize = ctx.sampleRate * 0.04;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 7000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.25, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
+    noise.start(startTime);
+
+} else if (track.sound === 'hihat_open') {
+    // 2️⃣ オープンハイハット
+    const bufferSize = ctx.sampleRate * 0.25;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 6000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.25, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
+    noise.start(startTime);
+
+} else if (track.sound === 'clap') {
+    // 3️⃣ ハンドクラップ
+    const bufferSize = ctx.sampleRate * 0.18;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = track.freq || 1200;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    // アタックの3連打表現
+    gain.gain.setValueAtTime(0.2, startTime);
+    gain.gain.setValueAtTime(0.01, startTime + 0.01);
+    gain.gain.setValueAtTime(0.2, startTime + 0.02);
+    gain.gain.setValueAtTime(0.01, startTime + 0.03);
+    gain.gain.setValueAtTime(0.25, startTime + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16);
+    noise.start(startTime);
+
+} else if (track.sound === 'tom_hi' || track.sound === 'tom_mid' || track.sound === 'tom_low') {
+    // 4️⃣ タム（High / Mid / Low）
+    osc.type = 'sine';
+    const baseFreq = track.freq || 120;
+    osc.frequency.setValueAtTime(baseFreq * 2.2, startTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq, startTime + 0.12);
+
+    gain.gain.setValueAtTime(0.35, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.22);
+
+} else if (track.sound === 'rimshot') {
+    // 5️⃣ リムショット
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(track.freq || 800, startTime);
+    osc.frequency.exponentialRampToValueAtTime(200, startTime + 0.015);
+
+    gain.gain.setValueAtTime(0.3, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.025);
+
+} else if (track.sound === 'cymbal') {
+    // 6️⃣ クラッシュシンバル（長めの広帯域ノイズ）
+    const bufferSize = ctx.sampleRate * 0.6;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = track.freq || 5000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.3, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.55);
+    noise.start(startTime);
+} else if (track.sound === 'hihat_open') {
+                // 🥁 オープンハイハット：余韻のある高音ノイズ
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 3000, startTime);
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.15);
+                osc.start(startTime);
+                osc.stop(startTime + 0.15);
+
+            } else if (track.sound === 'snare_hd') {
+                // 🥁 リアルスネア：スナッピー（ノイズ）成分の再現
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(track.freq + Math.random() * 1200, startTime);
+                osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.08);
+                gain.gain.setValueAtTime(0.25, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.08);
+                osc.start(startTime);
+                osc.stop(startTime + 0.08);
+
+            } else if (track.sound === 'kick_deep') {
+                // 🥁 重低音キック：Sine波の急激なピッチダウン（808系キック）
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(track.freq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(20, startTime + 0.12);
+                gain.gain.setValueAtTime(0.50, startTime);
+                gain.gain.linearRampToValueAtTime(0.001, startTime + 0.14);
+                osc.start(startTime);
+                osc.stop(startTime + 0.14);
+            }
+            return osc;
+        }
+
+        function scheduler() { 
+            while (nextTickTime < audioCtx.currentTime + 0.1) { 
+                playStep(currentStep, nextTickTime); 
+                nextTick(); 
+            } 
+            timerId = setTimeout(scheduler, 25); 
+        } 
+
+        function playStep(step, time) { 
+            allTracks.forEach((track, r) => { 
+                const state = gridState[r][step] ? parseInt(gridState[r][step]) : 0; 
+                if (state > 0) { 
+                    const def = NOTE_DEFINITIONS[state]; 
+                    if (def) { 
+                        const stepDuration = 60 / bpm / 4; 
+                        const subDiv = def.pattern.length; 
+                        const subTick = stepDuration / subDiv; 
+                        def.pattern.forEach((trigger, idx) => { 
+                            if (trigger === 1) { createSynthNode(audioCtx, track, time + (idx * subTick)); } 
+                        }); 
+                    } 
+                } 
+            }); 
+            if (!freezeVisualCheck.checked) { 
+                requestAnimationFrame(() => updateVisuals(step)); 
+            } 
+        } 
+
+        function nextTick() { 
+            const secondsPerBeat = 60.0 / bpm; 
+            nextTickTime += 0.25 * secondsPerBeat; 
+            currentStep++; 
+            if (currentStep >= totalSteps) currentStep = 0; 
+        } 
+
+        function updateVisuals(step) { 
+            if (lastVisualStep !== -1) { 
+                document.querySelectorAll(`.note-btn[data-col="${lastVisualStep}"]`).forEach(el => el.classList.remove('current-step')); 
+                const prevBar = document.getElementById(`bar-c-${lastVisualStep}`); 
+                if (prevBar) prevBar.classList.remove('current-step'); 
+            } 
+            document.querySelectorAll(`.note-btn[data-col="${step}"]`).forEach(el => el.classList.add('current-step')); 
+            const currBar = document.getElementById(`bar-c-${step}`); 
+            if (currBar) currBar.classList.add('current-step'); 
+            lastVisualStep = step; 
+        } 
+
+        playBtn.addEventListener('click', () => { 
+            initAudioContext(); 
+            isPlaying = !isPlaying; 
+            if (isPlaying) { 
+                playBtn.innerText = "一時停止"; playBtn.classList.add('playing'); 
+                currentStep = startFromStep; nextTickTime = audioCtx.currentTime; 
+                scheduler(); 
+            } else { 
+                playBtn.innerText = "再生 / 一時停止"; playBtn.classList.remove('playing'); 
+                clearTimeout(timerId); 
+            } 
+        }); 
+
+        document.getElementById('clearBtn').addEventListener('click', () => { 
+            if (confirm("シーケンサーを初期化しますか？")) { 
+                gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); 
+                saveAndRefreshExportString(); buildGrid(); showStatus("状態: クリアされました", "#ff4444"); 
+            } 
+        }); 
+
+        // ==========================================
+        //  🎵 WAV音声保存 (エクスポート機能のコア実装)
+        // ==========================================
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            showStatus("状態: 音声レンダリング中...", "#ffcc00");
+            
+            const sampleRate = 44100;
+            const secondsPerBeat = 60.0 / bpm;
+            const stepDuration = 0.25 * secondsPerBeat; // 1歩あたりの秒数
+            const totalDuration = totalSteps * stepDuration + 0.5; // 曲の長さ + 余韻0.5秒
+            
+            // バックグラウンド処理用のOfflineAudioContextを作成
+            const offlineCtx = new OfflineAudioContext(1, sampleRate * totalDuration, sampleRate);
+            
+            // 全てのノートをオフラインコンテキスト上にスケジュール
+            for (let step = 0; step < totalSteps; step++) {
+                const time = step * stepDuration;
+                allTracks.forEach((track, r) => {
+                    const state = gridState[r][step] ? parseInt(gridState[r][step]) : 0;
+                    if (state > 0) {
+                        const def = NOTE_DEFINITIONS[state];
+                        if (def) {
+                            const subDiv = def.pattern.length;
+                            const subTick = stepDuration / subDiv;
+                            def.pattern.forEach((trigger, idx) => {
+                                if (trigger === 1) {
+                                    createSynthNode(offlineCtx, track, time + (idx * subTick));
+                                }
+                            });
+                        }
                     }
-                }
-
-                // トリミング適用
-                const startTime = parseFloat(startRange.value);
-                const endTime = parseFloat(endRange.value);
-                const startSample = Math.floor(startTime * sampleRate);
-                const endSample = Math.floor(endTime * sampleRate);
-                const trimmedLength = endSample - startSample;
-
-                const trimmedBuffer = audioContext.createBuffer(numberOfChannels, trimmedLength, sampleRate);
-
-                for (let channel = 0; channel < numberOfChannels; channel++) {
-                    const inputData = mergedBuffer.getChannelData(channel);
-                    const outputData = trimmedBuffer.getChannelData(channel);
-                    for (let i = 0; i < trimmedLength; i++) {
-                        outputData[i] = inputData[startSample + i];
-                    }
-                }
-
-                // WAVファイルエンコード
-                const wavBlob = audioBufferToWav(trimmedBuffer);
+                });
+            }
+            
+            try {
+                // レンダリング実行
+                const renderedBuffer = await offlineCtx.startRendering();
+                // AudioBuffer から WAV バイナリを作成
+                const wavBlob = bufferToWav(renderedBuffer);
+                
+                // ダウンロード用リンクの生成とクリック処理
                 const url = URL.createObjectURL(wavBlob);
-
-                audioPreview.src = url;
-                downloadBtn.href = url;
-                downloadBtn.download = `edited_${Date.now()}.wav`;
-                outputContainer.style.display = 'block';
-
-            } catch (err) {
-                alert('処理中にエラーが発生しました。');
-                console.error(err);
-            } finally {
-                processBtn.disabled = false;
-                processBtn.textContent = '書き出す (トリミング・結合)';
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `8bit_studio_export_${Date.now()}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showStatus("状態: WAV書き出し成功！", "#00ffaa");
+            } catch (error) {
+                console.error(error);
+                showStatus("状態: 書き出し失敗", "#ff4444");
             }
         });
 
-        // AudioBufferをWAV Blobに変換する関数
-        function audioBufferToWav(buffer) {
-            const numChannels = buffer.numberOfChannels;
+        // AudioBuffer を RIFF/WAVE フォーマットの Blob に変換する関数
+        function bufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
-            const format = 1; // PCM
-            const bitDepth = 16;
+            const format = 1; // 1 = 未圧縮PCM
+            const bitDepth = 16; // 16bitで出力
             
+            let result;
+            if (numOfChan === 2) {
+                result = interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+            } else {
+                result = buffer.getChannelData(0); // モノラル
+            }
+            
+            const bufferLen = result.length;
             const bytesPerSample = bitDepth / 8;
-            const blockAlign = numChannels * bytesPerSample;
+            const blockAlign = numOfChan * bytesPerSample;
             
-            const dataLength = buffer.length * blockAlign;
-            const bufferLength = 44 + dataLength;
-            
-            const arrayBuffer = new ArrayBuffer(bufferLength);
+            const arrayBuffer = new ArrayBuffer(44 + bufferLen * bytesPerSample);
             const view = new DataView(arrayBuffer);
             
             /* RIFF identifier */
             writeString(view, 0, 'RIFF');
-            /* RIFF chunk length */
-            view.setUint32(4, 36 + dataLength, true);
+            /* file length */
+            view.setUint32(4, 36 + bufferLen * bytesPerSample, true);
             /* RIFF type */
             writeString(view, 8, 'WAVE');
             /* format chunk identifier */
             writeString(view, 12, 'fmt ');
             /* format chunk length */
             view.setUint32(16, 16, true);
-            /* sample format */
+            /* sample format (raw) */
             view.setUint16(20, format, true);
             /* channel count */
-            view.setUint16(22, numChannels, true);
+            view.setUint16(22, numOfChan, true);
             /* sample rate */
             view.setUint32(24, sampleRate, true);
             /* byte rate (sample rate * block align) */
             view.setUint32(28, sampleRate * blockAlign, true);
-            /* block align */
+            /* block align (channel count * bytes per sample) */
             view.setUint16(32, blockAlign, true);
             /* bits per sample */
             view.setUint16(34, bitDepth, true);
             /* data chunk identifier */
             writeString(view, 36, 'data');
             /* data chunk length */
-            view.setUint32(40, dataLength, true);
+            view.setUint32(40, bufferLen * bytesPerSample, true);
             
-            // 16-bit PCMデータ書き込み
-            const channels = [];
-            for (let i = 0; i < numChannels; i++) {
-                channels.push(buffer.getChannelData(i));
-            }
-            
+            // 浮動小数点数（-1.0〜1.0）を 16bit符号付き整数（-32768〜32767）に変換して書き込み
             let offset = 44;
-            for (let i = 0; i < buffer.length; i++) {
-                for (let channel = 0; channel < numChannels; channel++) {
-                    let sample = channels[channel][i];
-                    sample = Math.max(-1, Math.min(1, sample));
-                    sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-                    view.setInt16(offset, sample, true);
-                    offset += 2;
-                }
+            for (let i = 0; i < bufferLen; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, result[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
             }
             
-            return new Blob([arrayBuffer], { type: 'audio/wav' });
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function interleave(inputL, inputR) {
+            const length = inputL.length + inputR.length;
+            const result = new Float32Array(length);
+            let index = 0, inputIndex = 0;
+            while (index < length) {
+                result[index++] = inputL[inputIndex];
+                result[index++] = inputR[inputIndex];
+                inputIndex++;
+            }
+            return result;
         }
 
         function writeString(view, offset, string) {
@@ -433,6 +1236,19 @@
                 view.setUint8(offset + i, string.charCodeAt(i));
             }
         }
-    </script>
-</body>
+
+        // 初回起動
+        const savedState = localStorage.getItem('m8192_ex_v8_state'); 
+        const savedLength = localStorage.getItem('m8192_ex_v8_length'); 
+        if (savedLength) totalSteps = parseInt(savedLength); 
+        if (savedState) { 
+            try { 
+                gridState = JSON.parse(savedState); 
+                while(gridState.length < allTracks.length) gridState.push(Array(totalSteps).fill(0)); 
+                gridState.forEach(row => { while(row.length < totalSteps) row.push(0); }); 
+            } catch(e) { gridState = Array(allTracks.length).fill().map(() => Array(totalSteps).fill(0)); } 
+        } 
+        buildGrid(); updatePaletteUI(); 
+    </script> 
+</body> 
 </html>
