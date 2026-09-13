@@ -50,6 +50,7 @@
             position: relative;
             overflow: auto;
             padding: 40px;
+            transition: all 0.3s ease;
         }
 
         .canvas-wrapper {
@@ -101,7 +102,6 @@
             display: inline-block;
         }
 
-        /* html2canvasで保存する際、background-clipを透過カラーに変更して四角い影を防ぐクラス */
         .html2canvas-fallback {
             background: none !important;
             -webkit-text-fill-color: initial !important;
@@ -306,6 +306,12 @@
             color: var(--neon-pink);
         }
 
+        .action-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .download-btn {
             background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
             border: none;
@@ -326,6 +332,61 @@
             box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
         }
 
+        .screenshot-mode-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: var(--neon-blue);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .screenshot-mode-btn:hover {
+            background: rgba(0, 240, 255, 0.15);
+        }
+
+        /* --- スクリーンショット表示用スタイル --- */
+        body.screenshot-mode {
+            background-color: #000;
+        }
+
+        body.screenshot-mode .control-panel {
+            display: none !important;
+        }
+
+        body.screenshot-mode .stage-area {
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            cursor: pointer;
+        }
+
+        body.screenshot-mode .grid-overlay {
+            display: none !important;
+        }
+
+        .screenshot-hint {
+            position: absolute;
+            top: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+            z-index: 100;
+        }
+
+        body.screenshot-mode .screenshot-hint {
+            display: block;
+        }
+
         @media (max-width: 900px) {
             body {
                 flex-direction: column;
@@ -343,7 +404,8 @@
 </head>
 <body>
 
-    <div class="stage-area">
+    <div class="stage-area" id="stage-area" onclick="exitScreenshotMode()">
+        <div class="screenshot-hint">タップ / クリックで編集モードに戻る</div>
         <div class="canvas-wrapper">
             <div id="icon-canvas" class="icon-canvas mode-grad">
                 <div id="grid-overlay" class="grid-overlay"></div>
@@ -356,7 +418,10 @@
     <div class="control-panel">
         <div class="panel-title">STUDIO CONTROLS</div>
 
-        <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
+        <div class="action-btn-group">
+            <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
+            <button class="screenshot-mode-btn" onclick="enterScreenshotMode()">📷 スクリーンショットモード</button>
+        </div>
 
         <div class="control-group">
             <div class="control-label">用途・アスペクト比選択</div>
@@ -463,6 +528,19 @@
     <script>
         let currentMode = 'icon';
         let bgMode = 'grad';
+        let isScreenshotMode = false;
+
+        function enterScreenshotMode() {
+            isScreenshotMode = true;
+            document.body.classList.add('screenshot-mode');
+        }
+
+        function exitScreenshotMode() {
+            if (isScreenshotMode) {
+                isScreenshotMode = false;
+                document.body.classList.remove('screenshot-mode');
+            }
+        }
 
         function switchMode(mode) {
             currentMode = mode;
@@ -647,8 +725,6 @@
             grid.style.display = 'none';
 
             const titleLogo = document.getElementById('title-logo');
-            
-            // html2canvas用フォールバック設定
             titleLogo.classList.add('html2canvas-fallback');
 
             const canvasArea = document.getElementById('icon-canvas');
