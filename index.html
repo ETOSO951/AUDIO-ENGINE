@@ -2,833 +2,584 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio & MOV/MP4 Editor</title>
-    <!-- FFmpeg.wasm CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Icon & Banner Studio - GAME PORTAL</title>
+    <!-- html2canvasライブラリ（Canvasキャプチャ・画像ダウンロード用） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --danger: #ef4444;
-            --accent: #10b981;
+            --bg-color: #0a0a0f;
+            --neon-blue: #00f0ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #bd00ff;
+            --text-main: #ffffff;
+            --text-sub: #8a8a9e;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding: 16px;
-            max-width: 650px;
-            margin: 0 auto;
+            font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+            background-color: #050508;
+            color: var(--text-main);
             min-height: 100vh;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        h1 {
-            font-size: 1.5rem;
+        /* 左側：プレビュー作業領域 */
+        .stage-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            position: relative;
+            overflow: auto;
+            padding: 40px;
+        }
+
+        /* プレビューキャンバス Wrapper */
+        .canvas-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* プレビューキャンバス */
+        .icon-canvas {
+            width: 512px;
+            height: 512px;
+            background-color: var(--bg-color);
+            /* グラデーションの中心を「50% 50%（真ん中）」に変更 */
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.25) 0%, transparent 65%),
+                radial-gradient(circle at 50% 50%, rgba(255, 0, 127, 0.2) 0%, transparent 80%);
+            border-radius: 0px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            margin-bottom: 20px;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            transition: width 0.3s ease, height 0.3s ease, border-radius 0.2s ease;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
-        .card {
-            background-color: var(--card-bg);
+        /* タイトル・サブタイトルのスタイル */
+        .title-logo {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            line-height: 1.2;
+            transform: translateY(0px);
+            white-space: nowrap;
+            /* 字間オフセット相殺用 */
+            margin-right: -2px;
+        }
+
+        .title-sub {
+            font-size: 16px;
+            color: var(--text-sub);
+            letter-spacing: 6px;
+            margin-top: 12px;
+            transform: translateY(0px);
+            white-space: nowrap;
+            margin-right: -6px;
+        }
+
+        /* ガイドライン */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 10% 10%;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            z-index: 5;
+        }
+
+        .grid-overlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(0, 240, 255, 0.4);
+        }
+
+        .grid-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 1px;
+            height: 100%;
+            background: rgba(0, 240, 255, 0.4);
+        }
+
+        /* 右側：コントローラーパネル */
+        .control-panel {
+            width: 380px;
+            background: rgba(15, 15, 25, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--neon-blue);
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border);
+            padding: 12px 14px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-label span.val {
+            color: var(--neon-pink);
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--neon-blue);
+            cursor: pointer;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--neon-blue);
+        }
+
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-blue);
+        }
+
+        .toggle-btn.active {
+            background: var(--neon-blue);
+            color: #000;
         }
 
         .mode-selector {
             display: flex;
             gap: 8px;
-            margin-bottom: 16px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 4px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
+            margin-bottom: 4px;
         }
 
         .mode-btn {
             flex: 1;
-            padding: 8px 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-weight: 600;
-            border-radius: 6px;
+            padding: 8px 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-sub);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            text-align: center;
         }
 
         .mode-btn.active {
-            background: var(--primary);
-            color: white;
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
         }
 
-        .file-input-wrapper {
-            position: relative;
-            display: block;
-            width: 100%;
-            padding: 16px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 2px dashed var(--border);
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
-
-        .file-input-wrapper input {
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .btn {
-            display: inline-block;
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            transition: background-color 0.2s;
-        }
-
-        .btn:disabled {
-            background-color: var(--border);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .file-list {
-            list-style: none;
-        }
-
-        .file-item {
-            background: rgba(0, 0, 0, 0.25);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            border: 1px solid var(--border);
-        }
-
-        .file-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .file-name {
-            font-size: 0.95rem;
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 50%;
-        }
-
-        .file-controls {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .btn-mini {
-            background: var(--border);
-            color: var(--text);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        .btn-play {
-            background: var(--accent);
-            color: white;
-            font-weight: bold;
-        }
-
-        .btn-play.playing {
-            background: #f59e0b;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .editor-grid {
+        .preset-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed var(--border);
-            font-size: 0.85rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
         }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .control-group label {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-muted);
-        }
-
-        .input-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        input[type="range"] {
-            flex: 1;
-            accent-color: var(--primary);
-            background: var(--bg);
-        }
-
-        input[type="number"], select {
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 4px 6px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-
-        input[type="number"] {
-            width: 70px;
-            text-align: right;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            color: var(--text);
-            margin-top: 4px;
-        }
-
-        audio {
-            width: 100%;
-            margin-top: 12px;
+        .preset-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 6px 4px;
+            font-size: 11px;
             border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
         }
 
-        .status-msg {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 8px;
-            text-align: center;
+        .preset-btn:hover {
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            border: none;
+            color: #fff;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+            transition: all 0.2s;
+        }
+
+        .download-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
+        }
+
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                overflow: auto;
+            }
+            .stage-area {
+                min-height: 500px;
+                padding: 20px;
+            }
+            .control-panel {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
 
-    <h1>Audio & MOV/MP4 Editor</h1>
-
-    <div class="mode-selector">
-        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">編集・結合</button>
-        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">音声抽出 (WAV)</button>
+    <!-- 左側：撮影・作成ステージ -->
+    <div class="stage-area">
+        <div class="canvas-wrapper">
+            <div id="icon-canvas" class="icon-canvas">
+                <div id="grid-overlay" class="grid-overlay"></div>
+                <div id="title-logo" class="title-logo">Game Portal</div>
+                <div id="title-sub" class="title-sub">NEXT GENERATION</div>
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-        <label class="file-input-wrapper">
-            <span id="fileInputLabel">ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)</span>
-            <input type="file" id="audioFiles" accept="audio/*,video/*,.mov,.mp4,.wav,.mp3" multiple>
-        </label>
-        <div id="statusMsg" class="status-msg"></div>
-        <ul id="fileList" class="file-list"></ul>
-    </div>
+    <!-- 右側：設定パネル -->
+    <div class="control-panel">
+        <div class="panel-title">STUDIO CONTROLS</div>
 
-    <div class="card">
-        <button id="processBtn" class="btn" disabled>書き出す (トリミング・編集・結合)</button>
-        <div id="outputContainer" style="margin-top: 16px; display: none;">
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">プレビュー / ダウンロード:</p>
-            <audio id="audioPreview" controls></audio>
-            <a id="downloadBtn" class="btn" style="margin-top: 12px; text-decoration: none; background-color: var(--accent);">ファイルをダウンロード</a>
+        <!-- ダウンロード実行ボタン -->
+        <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
+
+        <!-- モード選択 -->
+        <div class="control-group">
+            <div class="control-label">用途・アスペクト比選択</div>
+            <div class="mode-selector">
+                <button id="mode-icon" class="mode-btn active" onclick="switchMode('icon')">正方形 (1:1)</button>
+                <button id="mode-video" class="mode-btn" onclick="switchMode('video')">横動画 (16:9)</button>
+                <button id="mode-banner" class="mode-btn" onclick="switchMode('banner')">バナー / ヘッダー</button>
+            </div>
+        </div>
+
+        <!-- サイズコントロール -->
+        <div class="control-group">
+            <div class="control-label">プリセットサイズ</div>
+            <!-- アイコン用 -->
+            <div id="presets-icon" class="preset-grid">
+                <button class="preset-btn" onclick="setCanvasSize(512, 512)">512×512 (Square)</button>
+                <button class="preset-btn" onclick="setCanvasSize(1024, 1024)">1024×1024 (HD Square)</button>
+                <button class="preset-btn" onclick="setCanvasSize(256, 256)">256×256 (Small)</button>
+                <button class="preset-btn" onclick="setCanvasSize(180, 180)">180×180 (App Icon)</button>
+            </div>
+            <!-- 横動画用 (16:9) -->
+            <div id="presets-video" class="preset-grid" style="display: none;">
+                <button class="preset-btn" onclick="setCanvasSize(1920, 1080)">1920×1080 (FHD Video)</button>
+                <button class="preset-btn" onclick="setCanvasSize(1280, 720)">1280×720 (HD Video)</button>
+                <button class="preset-btn" onclick="setCanvasSize(854, 480)">854×480 (SD Video)</button>
+                <button class="preset-btn" onclick="setCanvasSize(640, 360)">640×360 (360p Video)</button>
+            </div>
+            <!-- バナー/ヘッダー用 -->
+            <div id="presets-banner" class="preset-grid" style="display: none;">
+                <button class="preset-btn" onclick="setCanvasSize(1200, 630)">1200×630 (OGP/SNS)</button>
+                <button class="preset-btn" onclick="setCanvasSize(800, 400)">800×400 (Card)</button>
+                <button class="preset-btn" onclick="setCanvasSize(800, 250)">800×250 (Header)</button>
+                <button class="preset-btn" onclick="setCanvasSize(600, 200)">600×200 (Banner)</button>
+            </div>
+
+            <div class="control-label" style="margin-top: 12px;">カスタム幅 (W) <span id="val-width" class="val">512px</span></div>
+            <input type="range" id="range-width" min="100" max="2500" step="10" value="512" oninput="manualSizeChange()">
+
+            <div class="control-label" style="margin-top: 8px;">カスタム高さ (H) <span id="val-height" class="val">512px</span></div>
+            <input type="range" id="range-height" min="100" max="2500" step="10" value="512" oninput="manualSizeChange()">
+        </div>
+
+        <!-- テキスト変更 -->
+        <div class="control-group">
+            <div class="control-label">メインタイトル</div>
+            <input type="text" id="input-title" value="Game Portal" oninput="updateText()">
+            <div class="control-label" style="margin-top: 8px;">サブタイトル</div>
+            <input type="text" id="input-sub" value="NEXT GENERATION" oninput="updateText()">
+        </div>
+
+        <!-- メインタイトル微調整 -->
+        <div class="control-group">
+            <div class="control-label">メインフォントサイズ <span id="val-title-size" class="val">42px</span></div>
+            <input type="range" id="range-title-size" min="12" max="300" value="42" oninput="render()">
+
+            <div class="control-label" style="margin-top: 8px;">メイン上下位置 (Y) <span id="val-title-y" class="val">0px</span></div>
+            <input type="range" id="range-title-y" min="-500" max="500" value="0" oninput="render()">
+
+            <div class="control-label" style="margin-top: 8px;">メイン文字間隔 <span id="val-title-spacing" class="val">2px</span></div>
+            <input type="range" id="range-title-spacing" min="-2" max="60" value="2" oninput="render()">
+        </div>
+
+        <!-- サブタイトル微調整 -->
+        <div class="control-group">
+            <div class="control-label">サブフォントサイズ <span id="val-sub-size" class="val">16px</span></div>
+            <input type="range" id="range-sub-size" min="8" max="150" value="16" oninput="render()">
+
+            <div class="control-label" style="margin-top: 8px;">サブ上下位置 (Y) <span id="val-sub-y" class="val">0px</span></div>
+            <input type="range" id="range-sub-y" min="-500" max="500" value="0" oninput="render()">
+
+            <div class="control-label" style="margin-top: 8px;">サブ文字間隔 <span id="val-sub-spacing" class="val">6px</span></div>
+            <input type="range" id="range-sub-spacing" min="0" max="60" value="6" oninput="render()">
+        </div>
+
+        <!-- エフェクト・枠線調整 -->
+        <div class="control-group">
+            <div class="control-label">ネオン発光強度 (Glow) <span id="val-glow" class="val">20px</span></div>
+            <input type="range" id="range-glow" min="0" max="100" value="20" oninput="render()">
+
+            <div class="control-label" style="margin-top: 8px;">角丸 (Radius) <span id="val-radius" class="val">0%</span></div>
+            <input type="range" id="range-radius" min="0" max="50" value="0" oninput="render()">
+        </div>
+
+        <!-- ガイド線表示 -->
+        <div class="control-group">
+            <button id="grid-toggle-btn" class="toggle-btn" onclick="toggleGrid()">中央ガイド線を表示</button>
         </div>
     </div>
 
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: false });
+        let currentMode = 'icon';
 
-        const audioFileInput = document.getElementById('audioFiles');
-        const fileInputLabel = document.getElementById('fileInputLabel');
-        const fileListEl = document.getElementById('fileList');
-        const processBtn = document.getElementById('processBtn');
-        const outputContainer = document.getElementById('outputContainer');
-        const audioPreview = document.getElementById('audioPreview');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const modeEditBtn = document.getElementById('modeEditBtn');
-        const modeConvertBtn = document.getElementById('modeConvertBtn');
-        const statusMsg = document.getElementById('statusMsg');
-
-        let currentMode = 'edit';
-        let fileItems = [];
-        let audioContext = null;
-        let activeSourceNode = null;
-        let playingIndex = -1;
-
-        function getAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            return audioContext;
-        }
-
-        window.setMode = function(mode) {
-            stopPreview();
+        function switchMode(mode) {
             currentMode = mode;
-            fileItems = [];
-            updateFileList();
-            outputContainer.style.display = 'none';
+            document.getElementById('mode-icon').classList.toggle('active', mode === 'icon');
+            document.getElementById('mode-video').classList.toggle('active', mode === 'video');
+            document.getElementById('mode-banner').classList.toggle('active', mode === 'banner');
 
-            if (mode === 'edit') {
-                modeEditBtn.classList.add('active');
-                modeConvertBtn.classList.remove('active');
-                fileInputLabel.textContent = 'ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)';
-                audioFileInput.multiple = true;
-                processBtn.textContent = '書き出す (トリミング・編集・結合)';
+            document.getElementById('presets-icon').style.display = mode === 'icon' ? 'grid' : 'none';
+            document.getElementById('presets-video').style.display = mode === 'video' ? 'grid' : 'none';
+            document.getElementById('presets-banner').style.display = mode === 'banner' ? 'grid' : 'none';
+
+            if (mode === 'icon') {
+                setCanvasSize(512, 512);
+            } else if (mode === 'video') {
+                setCanvasSize(1280, 720);
             } else {
-                modeConvertBtn.classList.add('active');
-                modeEditBtn.classList.remove('active');
-                fileInputLabel.textContent = '動画・音声ファイルを選択 (.mov / .mp4 / .mp3 / .wav)';
-                audioFileInput.multiple = false;
-                processBtn.textContent = '音声(WAV)に変換';
+                setCanvasSize(800, 250);
             }
-        };
-
-        async function loadAudioBufferWithFFmpeg(file) {
-            const ctx = getAudioContext();
-
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                return await ctx.decodeAudioData(arrayBuffer);
-            } catch (e) {
-                console.warn('標準デコード不能。FFmpegエンジンを起動します:', file.name);
-            }
-
-            if (!ffmpeg.isLoaded()) {
-                statusMsg.textContent = 'FFmpegエンジン初期化中...';
-                await ffmpeg.load();
-            }
-
-            statusMsg.textContent = `「${file.name}」から音声を抽出中...`;
-
-            const safeFileName = 'input_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-            const outputFileName = 'output_' + Date.now() + '.wav';
-
-            ffmpeg.FS('writeFile', safeFileName, await fetchFile(file));
-            await ffmpeg.run('-i', safeFileName, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputFileName);
-
-            const data = ffmpeg.FS('readFile', outputFileName);
-
-            try {
-                ffmpeg.FS('unlink', safeFileName);
-                ffmpeg.FS('unlink', outputFileName);
-            } catch (err) {}
-
-            statusMsg.textContent = '';
-            return await ctx.decodeAudioData(data.buffer);
         }
 
-        audioFileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-
-            processBtn.disabled = true;
-            processBtn.textContent = '読み込み中...';
-
-            for (let file of files) {
-                try {
-                    const audioBuffer = await loadAudioBufferWithFFmpeg(file);
-
-                    fileItems.push({
-                        file: file,
-                        buffer: audioBuffer,
-                        duration: audioBuffer.duration,
-                        startTime: 0,
-                        endTime: audioBuffer.duration,
-                        speed: 1.0,
-                        volume: 1.0,
-                        reverse: false,
-                        filter: 'none'
-                    });
-                } catch (err) {
-                    console.error('読み込みエラー:', file.name, err);
-                    alert(`「${file.name}」の読み込みに失敗しました。ファイルが破損している可能性があります。`);
-                }
-            }
-
-            statusMsg.textContent = '';
-            audioFileInput.value = '';
-            updateFileList();
-            processBtn.disabled = fileItems.length === 0;
-            processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
-        });
-
-        function stopPreview() {
-            if (activeSourceNode) {
-                try {
-                    activeSourceNode.stop();
-                    activeSourceNode.disconnect();
-                } catch (e) {}
-                activeSourceNode = null;
-            }
-            playingIndex = -1;
-            updatePlayButtons();
+        function setCanvasSize(w, h) {
+            document.getElementById('range-width').value = w;
+            document.getElementById('range-height').value = h;
+            
+            // キャンバスサイズ変更時に各種初期設定値を自動調整
+            autoAdjustTypography(w, h);
+            applyCanvasSize(w, h);
         }
 
-        window.togglePreview = function(index) {
-            const ctx = getAudioContext();
+        function manualSizeChange() {
+            const w = parseInt(document.getElementById('range-width').value);
+            const h = parseInt(document.getElementById('range-height').value);
+            
+            autoAdjustTypography(w, h);
+            applyCanvasSize(w, h);
+        }
 
-            if (playingIndex === index) {
-                stopPreview();
-                return;
+        // 解像度変更に合わせたフォントサイズやネオン光量の初期値・スライダー連動の自動計算
+        function autoAdjustTypography(w, h) {
+            const minDim = Math.min(w, h);
+            const scale = minDim / 512; // 512pxを基準値とするスケール倍率
+
+            const newTitleSize = Math.round(42 * scale);
+            const newSubSize = Math.round(16 * scale);
+            const newTitleSpacing = Math.max(1, Math.round(2 * scale));
+            const newSubSpacing = Math.max(2, Math.round(6 * scale));
+            const newGlow = Math.round(20 * scale);
+
+            document.getElementById('range-title-size').value = newTitleSize;
+            document.getElementById('range-sub-size').value = newSubSize;
+            document.getElementById('range-title-spacing').value = newTitleSpacing;
+            document.getElementById('range-sub-spacing').value = newSubSpacing;
+            document.getElementById('range-glow').value = newGlow;
+            
+            document.getElementById('range-title-y').value = 0;
+            document.getElementById('range-sub-y').value = 0;
+        }
+
+        function applyCanvasSize(w, h) {
+            const canvas = document.getElementById('icon-canvas');
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            document.getElementById('val-width').innerText = w + 'px';
+            document.getElementById('val-height').innerText = h + 'px';
+
+            render();
+        }
+
+        function updateText() {
+            document.getElementById('title-logo').innerText = document.getElementById('input-title').value;
+            document.getElementById('title-sub').innerText = document.getElementById('input-sub').value;
+        }
+
+        function toggleGrid() {
+            const grid = document.getElementById('grid-overlay');
+            const btn = document.getElementById('grid-toggle-btn');
+            if (grid.style.display === 'block') {
+                grid.style.display = 'none';
+                btn.classList.remove('active');
+            } else {
+                grid.style.display = 'block';
+                btn.classList.add('active');
             }
+        }
 
-            stopPreview();
+        function render() {
+            const titleSize = parseInt(document.getElementById('range-title-size').value);
+            const titleY = parseInt(document.getElementById('range-title-y').value);
+            const titleSpacing = parseInt(document.getElementById('range-title-spacing').value);
 
-            const item = fileItems[index];
-            const numChannels = item.buffer.numberOfChannels;
-            const sampleRate = item.buffer.sampleRate;
+            const subSize = parseInt(document.getElementById('range-sub-size').value);
+            const subY = parseInt(document.getElementById('range-sub-y').value);
+            const subSpacing = parseInt(document.getElementById('range-sub-spacing').value);
 
-            let srcBuffer = item.buffer;
+            const glow = parseInt(document.getElementById('range-glow').value);
+            const radius = parseInt(document.getElementById('range-radius').value);
 
-            if (item.reverse) {
-                srcBuffer = ctx.createBuffer(numChannels, item.buffer.length, sampleRate);
-                for (let ch = 0; ch < numChannels; ch++) {
-                    const inData = item.buffer.getChannelData(ch);
-                    const outData = srcBuffer.getChannelData(ch);
-                    for (let i = 0; i < inData.length; i++) {
-                        outData[i] = inData[inData.length - 1 - i];
-                    }
-                }
-            }
+            document.getElementById('val-title-size').innerText = titleSize + 'px';
+            document.getElementById('val-title-y').innerText = titleY + 'px';
+            document.getElementById('val-title-spacing').innerText = titleSpacing + 'px';
 
-            const source = ctx.createBufferSource();
-            source.buffer = srcBuffer;
-            source.playbackRate.value = item.speed;
+            document.getElementById('val-sub-size').innerText = subSize + 'px';
+            document.getElementById('val-sub-y').innerText = subY + 'px';
+            document.getElementById('val-sub-spacing').innerText = subSpacing + 'px';
 
-            const gainNode = ctx.createGain();
-            gainNode.gain.value = item.volume;
+            document.getElementById('val-glow').innerText = glow + 'px';
+            document.getElementById('val-radius').innerText = radius + '%';
 
-            let lastNode = source;
-            if (item.filter !== 'none') {
-                const filterNode = ctx.createBiquadFilter();
-                if (item.filter === 'lowpass') {
-                    filterNode.type = 'lowpass';
-                    filterNode.frequency.value = 1000;
-                } else if (item.filter === 'highpass') {
-                    filterNode.type = 'highpass';
-                    filterNode.frequency.value = 2000;
-                } else if (item.filter === 'bassboost') {
-                    filterNode.type = 'lowshelf';
-                    filterNode.frequency.value = 200;
-                    filterNode.gain.value = 10;
-                }
-                lastNode.connect(filterNode);
-                lastNode = filterNode;
-            }
+            // メインタイトル描画（文字間隔マージンをネガティブオフセットして完全中央配置）
+            const titleLogo = document.getElementById('title-logo');
+            titleLogo.style.fontSize = titleSize + 'px';
+            titleLogo.style.transform = `translateY(${titleY}px)`;
+            titleLogo.style.letterSpacing = titleSpacing + 'px';
+            titleLogo.style.marginRight = `-${titleSpacing}px`;
+            titleLogo.style.textShadow = `0 0 ${glow}px rgba(0, 240, 255, 0.5)`;
 
-            lastNode.connect(gainNode);
-            gainNode.connect(ctx.destination);
+            // サブタイトル描画
+            const titleSub = document.getElementById('title-sub');
+            titleSub.style.fontSize = subSize + 'px';
+            titleSub.style.transform = `translateY(${subY}px)`;
+            titleSub.style.letterSpacing = subSpacing + 'px';
+            titleSub.style.marginRight = `-${subSpacing}px`;
 
-            const trimDuration = item.endTime - item.startTime;
-            let actualStart = item.startTime;
-            if (item.reverse) {
-                actualStart = item.duration - item.endTime;
-            }
+            const canvas = document.getElementById('icon-canvas');
+            canvas.style.borderRadius = radius + '%';
+        }
 
-            source.start(0, actualStart, trimDuration);
-            activeSourceNode = source;
-            playingIndex = index;
+        // 画像生成・保存処理
+        function downloadImage() {
+            const grid = document.getElementById('grid-overlay');
+            const originalGridState = grid.style.display;
+            grid.style.display = 'none';
 
-            source.onended = () => {
-                if (playingIndex === index) {
-                    playingIndex = -1;
-                    activeSourceNode = null;
-                    updatePlayButtons();
-                }
-            };
+            const canvasArea = document.getElementById('icon-canvas');
 
-            updatePlayButtons();
-        };
+            html2canvas(canvasArea, {
+                backgroundColor: null,
+                scale: 2,
+                useCORS: true
+            }).then(canvas => {
+                grid.style.display = originalGridState;
 
-        function updatePlayButtons() {
-            fileItems.forEach((_, idx) => {
-                const btn = document.getElementById(`playBtn_${idx}`);
-                if (btn) {
-                    if (idx === playingIndex) {
-                        btn.textContent = '■ 停止';
-                        btn.classList.add('playing');
-                    } else {
-                        btn.textContent = '▶ 再生';
-                        btn.classList.remove('playing');
-                    }
-                }
+                const link = document.createElement('a');
+                let filename = 'app-icon.png';
+                if (currentMode === 'video') filename = 'thumbnail-16-9.png';
+                else if (currentMode === 'banner') filename = 'banner.png';
+                
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
             });
         }
 
-        function updateFileList() {
-            fileListEl.innerHTML = '';
-            fileItems.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'file-item';
-
-                const isPlaying = playingIndex === index;
-
-                const controlsHtml = currentMode === 'edit' ? `
-                    <div class="file-controls">
-                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
-                            ${isPlaying ? '■ 停止' : '▶ 再生'}
-                        </button>
-                        <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === fileItems.length - 1 ? 'disabled' : ''}>▼</button>
-                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
-                    </div>
-                ` : `
-                    <div class="file-controls">
-                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
-                            ${isPlaying ? '■ 停止' : '▶ 再生'}
-                        </button>
-                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
-                    </div>
-                `;
-
-                let editorHtml = '';
-                if (currentMode === 'edit') {
-                    editorHtml = `
-                        <div class="editor-grid">
-                            <div class="control-group">
-                                <label>開始位置 (秒)</label>
-                                <div class="input-row">
-                                    <input type="range" id="stRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.startTime}" oninput="updateParam(${index}, 'startTime', this.value, 'range')">
-                                    <input type="number" id="stNum_${index}" step="0.01" value="${item.startTime.toFixed(2)}" oninput="updateParam(${index}, 'startTime', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>終了位置 (秒)</label>
-                                <div class="input-row">
-                                    <input type="range" id="etRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.endTime}" oninput="updateParam(${index}, 'endTime', this.value, 'range')">
-                                    <input type="number" id="etNum_${index}" step="0.01" value="${item.endTime.toFixed(2)}" oninput="updateParam(${index}, 'endTime', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>再生速度 (倍)</label>
-                                <div class="input-row">
-                                    <input type="range" id="spRange_${index}" min="0.25" max="5.0" step="0.05" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'range')">
-                                    <input type="number" id="spNum_${index}" step="0.1" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>音量 (倍)</label>
-                                <div class="input-row">
-                                    <input type="range" id="volRange_${index}" min="0" max="10.0" step="0.05" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'range')">
-                                    <input type="number" id="volNum_${index}" step="0.1" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>フィルター</label>
-                                <select onchange="updateParam(${index}, 'filter', this.value)">
-                                    <option value="none" ${item.filter === 'none' ? 'selected' : ''}>なし</option>
-                                    <option value="lowpass" ${item.filter === 'lowpass' ? 'selected' : ''}>ローパス (こもり音)</option>
-                                    <option value="highpass" ${item.filter === 'highpass' ? 'selected' : ''}>ハイパス (シャカシャカ音)</option>
-                                    <option value="bassboost" ${item.filter === 'bassboost' ? 'selected' : ''}>低音ブースト</option>
-                                </select>
-                            </div>
-                            <div class="control-group" style="justify-content: flex-end;">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" ${item.reverse ? 'checked' : ''} onchange="updateParam(${index}, 'reverse', this.checked)">
-                                    逆再生
-                                </label>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                li.innerHTML = `
-                    <div class="file-header">
-                        <span class="file-name">${currentMode === 'edit' ? (index + 1) + '. ' : ''}${item.file.name}</span>
-                        ${controlsHtml}
-                    </div>
-                    ${editorHtml}
-                `;
-                fileListEl.appendChild(li);
-            });
-
-            processBtn.disabled = fileItems.length === 0;
-        }
-
-        window.updateParam = function(index, param, value, sourceType = 'direct') {
-            const item = fileItems[index];
-            const numVal = parseFloat(value);
-
-            if (param === 'startTime') {
-                const val = isNaN(numVal) ? 0 : Math.max(0, numVal);
-                item.startTime = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`stRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`stNum_${index}`);
-                    if (el) el.value = val.toFixed(2);
-                }
-            } else if (param === 'endTime') {
-                const val = isNaN(numVal) ? item.duration : valConstraint(numVal, 0, item.duration);
-                item.endTime = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`etRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`etNum_${index}`);
-                    if (el) el.value = val.toFixed(2);
-                }
-            } else if (param === 'speed') {
-                const val = isNaN(numVal) ? 1.0 : Math.max(0.01, numVal); // 最低0.01倍
-                item.speed = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`spRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`spNum_${index}`);
-                    if (el) el.value = val;
-                }
-            } else if (param === 'volume') {
-                const val = isNaN(numVal) ? 1.0 : Math.max(0, numVal); // 0以上なら無限に設定可能
-                item.volume = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`volRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`volNum_${index}`);
-                    if (el) el.value = val;
-                }
-            } else if (param === 'filter') {
-                item.filter = value;
-            } else if (param === 'reverse') {
-                item.reverse = value;
-            }
-
-            if (playingIndex === index) {
-                togglePreview(index);
-            }
-        };
-
-        function valConstraint(val, min, max) {
-            return Math.min(Math.max(val, min), max);
-        }
-
-        window.moveFile = function(index, direction) {
-            stopPreview();
-            const targetIndex = index + direction;
-            if (targetIndex >= 0 && targetIndex < fileItems.length) {
-                const temp = fileItems[index];
-                fileItems[index] = fileItems[targetIndex];
-                fileItems[targetIndex] = temp;
-                updateFileList();
-            }
-        };
-
-        window.removeFile = function(index) {
-            if (playingIndex === index) {
-                stopPreview();
-            }
-            fileItems.splice(index, 1);
-            updateFileList();
-        };
-
-        processBtn.addEventListener('click', async () => {
-            stopPreview();
-            processBtn.disabled = true;
-            processBtn.textContent = '処理中...';
-
-            try {
-                const ctx = getAudioContext();
-                const processedBuffers = [];
-
-                for (let item of fileItems) {
-                    const sampleRate = item.buffer.sampleRate;
-                    const numChannels = item.buffer.numberOfChannels;
-                    const trimDuration = item.endTime - item.startTime;
-                    const outputDuration = trimDuration / item.speed;
-                    const outputLength = Math.floor(outputDuration * sampleRate);
-
-                    const offlineCtx = new OfflineAudioContext(numChannels, outputLength, sampleRate);
-
-                    let srcBuffer = item.buffer;
-
-                    if (item.reverse) {
-                        srcBuffer = offlineCtx.createBuffer(numChannels, item.buffer.length, sampleRate);
-                        for (let ch = 0; ch < numChannels; ch++) {
-                            const inData = item.buffer.getChannelData(ch);
-                            const outData = srcBuffer.getChannelData(ch);
-                            for (let i = 0; i < inData.length; i++) {
-                                outData[i] = inData[inData.length - 1 - i];
-                            }
-                        }
-                    }
-
-                    const source = offlineCtx.createBufferSource();
-                    source.buffer = srcBuffer;
-                    source.playbackRate.value = item.speed;
-
-                    const gainNode = offlineCtx.createGain();
-                    gainNode.gain.value = item.volume;
-
-                    let lastNode = source;
-                    if (item.filter !== 'none') {
-                        const filterNode = offlineCtx.createBiquadFilter();
-                        if (item.filter === 'lowpass') {
-                            filterNode.type = 'lowpass';
-                            filterNode.frequency.value = 1000;
-                        } else if (item.filter === 'highpass') {
-                            filterNode.type = 'highpass';
-                            filterNode.frequency.value = 2000;
-                        } else if (item.filter === 'bassboost') {
-                            filterNode.type = 'lowshelf';
-                            filterNode.frequency.value = 200;
-                            filterNode.gain.value = 10;
-                        }
-                        lastNode.connect(filterNode);
-                        lastNode = filterNode;
-                    }
-
-                    lastNode.connect(gainNode);
-                    gainNode.connect(offlineCtx.destination);
-
-                    let actualStart = item.startTime;
-                    if (item.reverse) {
-                        actualStart = item.duration - item.endTime;
-                    }
-
-                    source.start(0, actualStart, trimDuration);
-                    const renderedBuffer = await offlineCtx.startRendering();
-                    processedBuffers.push(renderedBuffer);
-                }
-
-                if (processedBuffers.length === 0) return;
-
-                const sampleRate = processedBuffers[0].sampleRate;
-                const numChannels = processedBuffers[0].numberOfChannels;
-                const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
-
-                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
-
-                for (let channel = 0; channel < numChannels; channel++) {
-                    const finalData = finalBuffer.getChannelData(channel);
-                    let offset = 0;
-                    for (let buf of processedBuffers) {
-                        const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
-                        finalData.set(channelData, offset);
-                        offset += buf.length;
-                    }
-                }
-
-                const wavBlob = audioBufferToWav(finalBuffer);
-                const url = URL.createObjectURL(wavBlob);
-
-                audioPreview.src = url;
-                downloadBtn.href = url;
-                downloadBtn.download = `converted_${Date.now()}.wav`;
-                outputContainer.style.display = 'block';
-
-            } catch (err) {
-                alert('書き出し中にエラーが発生しました。');
-                console.error(err);
-            } finally {
-                processBtn.disabled = false;
-                processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
-            }
-        });
-
-        function audioBufferToWav(buffer) {
-            const numChannels = buffer.numberOfChannels;
-            const sampleRate = buffer.sampleRate;
-            const format = 1;
-            const bitDepth = 16;
-            const bytesPerSample = bitDepth / 8;
-            const blockAlign = numChannels * bytesPerSample;
-            const dataLength = buffer.length * blockAlign;
-            const bufferLength = 44 + dataLength;
-
-            const arrayBuffer = new ArrayBuffer(bufferLength);
-            const view = new DataView(arrayBuffer);
-
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataLength, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, format, true);
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * blockAlign, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitDepth, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataLength, true);
-
-            const channels = [];
-            for (let i = 0; i < numChannels; i++) {
-                channels.push(buffer.getChannelData(i));
-            }
-
-            let offset = 44;
-            for (let i = 0; i < buffer.length; i++) {
-                for (let channel = 0; channel < numChannels; channel++) {
-                    let sample = channels[channel][i];
-                    sample = Math.max(-1, Math.min(1, sample));
-                    sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-                    view.setInt16(offset, sample, true);
-                    offset += 2;
-                }
-            }
-
-            return new Blob([arrayBuffer], { type: 'audio/wav' });
-        }
-
-        function writeString(view, offset, string) {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
-        }
+        // 初期化実行
+        render();
     </script>
 </body>
 </html>
