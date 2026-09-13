@@ -349,7 +349,7 @@
             background: rgba(0, 240, 255, 0.15);
         }
 
-        /* --- スクリーンショット表示用スタイル --- */
+        /* --- スクリーンショット表示用スタイル（スマホ画面フィット調整） --- */
         body.screenshot-mode {
             background-color: #000;
         }
@@ -359,10 +359,31 @@
         }
 
         body.screenshot-mode .stage-area {
-            padding: 0;
+            padding: 16px;
             width: 100vw;
             height: 100vh;
             cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body.screenshot-mode .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body.screenshot-mode .icon-canvas {
+            max-width: 90vw !important;
+            max-height: 80vh !important;
+            width: auto !important;
+            height: auto !important;
+            aspect-ratio: var(--canvas-aspect, 1 / 1);
+            box-sizing: border-box;
         }
 
         body.screenshot-mode .grid-overlay {
@@ -371,16 +392,17 @@
 
         .screenshot-hint {
             position: absolute;
-            top: 20px;
-            background: rgba(0, 0, 0, 0.7);
+            top: 16px;
+            background: rgba(0, 0, 0, 0.75);
             color: #fff;
-            padding: 8px 16px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             pointer-events: none;
             border: 1px solid rgba(255, 255, 255, 0.2);
             display: none;
             z-index: 100;
+            text-align: center;
         }
 
         body.screenshot-mode .screenshot-hint {
@@ -393,7 +415,7 @@
                 overflow: auto;
             }
             .stage-area {
-                min-height: 500px;
+                min-height: 400px;
                 padding: 20px;
             }
             .control-panel {
@@ -656,6 +678,10 @@
             const canvas = document.getElementById('icon-canvas');
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
+            
+            /* スクリーンショット時のアスペクト比固定用 */
+            document.documentElement.style.setProperty('--canvas-aspect', `${w} / ${h}`);
+
             document.getElementById('val-width').innerText = w + 'px';
             document.getElementById('val-height').innerText = h + 'px';
 
