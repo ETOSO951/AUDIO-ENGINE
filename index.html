@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Audio & MP4 Editor</title>
+    <title>Advanced Audio & Media Editor</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -166,7 +166,6 @@
             color: white;
         }
 
-        /* パラメータ編集パネル */
         .editor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -221,18 +220,18 @@
 </head>
 <body>
 
-    <h1>Audio Editor & Converter</h1>
+    <h1>Audio & Media Converter</h1>
 
     <div class="mode-selector">
-        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">音声を編集・結合</button>
-        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">動画 音声抽出</button>
+        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">編集・結合</button>
+        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">音声抽出 (WAV)</button>
     </div>
 
     <div class="card">
         <label class="file-input-wrapper">
-            <span id="fileInputLabel">音声・動画ファイルを選択 (複数可)</span>
-            <!-- accept 属性に audio/* と video/* の両方を指定 -->
-            <input type="file" id="audioFiles" accept="audio/*,video/*" multiple>
+            <span id="fileInputLabel">ファイルを選択 (.wav / .mp3 / .mov / .mp4 対応)</span>
+            <!-- WAV, MP3, MOV, MP4 に対応する拡張子・MIMEタイプを指定 -->
+            <input type="file" id="audioFiles" accept="audio/wav,audio/mp3,audio/mpeg,video/quicktime,video/mp4,.wav,.mp3,.mov,.mp4" multiple>
         </label>
         <ul id="fileList" class="file-list"></ul>
     </div>
@@ -258,8 +257,18 @@
         const modeConvertBtn = document.getElementById('modeConvertBtn');
 
         let currentMode = 'edit';
-        let fileItems = []; // 編集用メタデータを保持
-        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let fileItems = [];
+        let audioContext = null;
+
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
+        }
 
         window.setMode = function(mode) {
             currentMode = mode;
@@ -267,32 +276,83 @@
             updateFileList();
             outputContainer.style.display = 'none';
 
+            const acceptTypes = 'audio/wav,audio/mp3,audio/mpeg,video/quicktime,video/mp4,.wav,.mp3,.mov,.mp4';
+
             if (mode === 'edit') {
                 modeEditBtn.classList.add('active');
                 modeConvertBtn.classList.remove('active');
-                fileInputLabel.textContent = '音声・動画ファイルを選択 (複数可)';
-                audioFileInput.accept = 'audio/*,video/*';
+                fileInputLabel.textContent = 'ファイルを選択 (.wav / .mp3 / .mov / .mp4 複数可)';
+                audioFileInput.accept = acceptTypes;
                 audioFileInput.multiple = true;
                 processBtn.textContent = '書き出す (トリミング・編集・結合)';
             } else {
                 modeConvertBtn.classList.add('active');
                 modeEditBtn.classList.remove('active');
-                fileInputLabel.textContent = '動画・音声ファイルを選択';
-                audioFileInput.accept = 'video/*,audio/*';
+                fileInputLabel.textContent = '動画・音声ファイルを選択 (.mov / .mp4 / .mp3 / .wav)';
+                audioFileInput.accept = acceptTypes;
                 audioFileInput.multiple = false;
                 processBtn.textContent = '音声(WAV)に変換';
             }
         };
 
+        // MOVや標準デコードで失敗するファイル向けの代替デコーダー
+        async function loadAudioBuffer(file) {
+            const ctx = getAudioContext();
+            
+            // 方法1: 標準デコード（WAV / MP3 / MP4）
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                return await ctx.decodeAudioData(arrayBuffer);
+            } catch (e) {
+                console.warn('標準デコード失敗、メディア要素による読み込みを試みます:', file.name, e);
+            }
+
+            // 方法2: MOVファイル等向けメディアエレメント経由再生＆オフラインレンダリングデコード
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const mediaElem = document.createElement(file.type.startsWith('video') || file.name.endsWith('.mov') ? 'video' : 'audio');
+                mediaElem.src = url;
+                mediaElem.preload = 'auto';
+
+                mediaElem.onloadedmetadata = async () => {
+                    try {
+                        const duration = mediaElem.duration;
+                        const sampleRate = ctx.sampleRate;
+                        const offlineCtx = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
+                        
+                        const mediaSource = offlineCtx.createMediaElementSource(mediaElem);
+                        mediaSource.connect(offlineCtx.destination);
+                        
+                        mediaElem.currentTime = 0;
+                        await mediaElem.play();
+                        
+                        const renderedBuffer = await offlineCtx.startRendering();
+                        mediaElem.pause();
+                        URL.revokeObjectURL(url);
+                        resolve(renderedBuffer);
+                    } catch (err) {
+                        URL.revokeObjectURL(url);
+                        reject(err);
+                    }
+                };
+
+                mediaElem.onerror = (err) => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('メディアファイルの読み込みに失敗しました。'));
+                };
+            });
+        }
+
         audioFileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
             processBtn.disabled = true;
             processBtn.textContent = '読み込み中...';
 
             for (let file of files) {
                 try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const audioBuffer = await loadAudioBuffer(file);
                     
                     fileItems.push({
                         file: file,
@@ -306,8 +366,8 @@
                         filter: 'none'
                     });
                 } catch (err) {
-                    console.error('ファイル読み込みエラー:', file.name, err);
-                    alert(`「${file.name}」の読み込みに失敗しました。\n対応していない形式か、写真アルバムのアクセス制限の可能性があります。`);
+                    console.error('読み込みエラー:', file.name, err);
+                    alert(`「${file.name}」の読み込みに失敗しました。\nファイルが破損しているか、ブラウザ非対応のコーデックの可能性があります。`);
                 }
             }
 
@@ -428,6 +488,7 @@
             processBtn.textContent = '処理中...';
 
             try {
+                const ctx = getAudioContext();
                 const processedBuffers = [];
 
                 for (let item of fileItems) {
@@ -496,7 +557,7 @@
                 const numChannels = processedBuffers[0].numberOfChannels;
                 const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
 
-                const finalBuffer = audioContext.createBuffer(numChannels, totalSamples, sampleRate);
+                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
 
                 for (let channel = 0; channel < numChannels; channel++) {
                     const finalData = finalBuffer.getChannelData(channel);
@@ -513,7 +574,7 @@
 
                 audioPreview.src = url;
                 downloadBtn.href = url;
-                downloadBtn.download = `edited_${Date.now()}.wav`;
+                downloadBtn.download = `converted_${Date.now()}.wav`;
                 outputContainer.style.display = 'block';
 
             } catch (err) {
