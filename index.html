@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Icon & Banner Studio - GAME PORTAL</title>
-    <!-- html2canvasライブラリ（Canvasキャプチャ・画像ダウンロード用） -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -15,9 +14,8 @@
             --text-main: #ffffff;
             --text-sub: #8a8a9e;
 
-            /* グラデーション動的計算用変数 */
-            --grad-color1: #00f0ff;
-            --grad-color2: #ff007f;
+            --grad-color1: rgba(0, 240, 255, 0.22);
+            --grad-color2: rgba(255, 0, 127, 0.22);
             --grad-x1: 30%;
             --grad-y1: 35%;
             --grad-x2: 70%;
@@ -42,7 +40,6 @@
             user-select: none;
         }
 
-        /* 左側：プレビュー作業領域 */
         .stage-area {
             flex: 1;
             display: flex;
@@ -55,7 +52,6 @@
             padding: 40px;
         }
 
-        /* プレビューキャンバス Wrapper */
         .canvas-wrapper {
             position: relative;
             display: flex;
@@ -65,7 +61,6 @@
             max-height: 100%;
         }
 
-        /* プレビューキャンバス */
         .icon-canvas {
             width: 512px;
             height: 512px;
@@ -83,20 +78,19 @@
             flex-shrink: 0;
         }
 
-        /* 2色グラデーションモード用CSSクラス */
         .icon-canvas.mode-grad {
             background-image: 
                 radial-gradient(circle at var(--grad-x1) var(--grad-y1), var(--grad-color1) 0%, transparent 60%),
                 radial-gradient(circle at var(--grad-x2) var(--grad-y2), var(--grad-color2) 0%, transparent 60%);
         }
 
-        /* タイトル・サブタイトルのスタイル */
         .title-logo {
             font-size: 42px;
             font-weight: 900;
             letter-spacing: 2px;
             text-transform: uppercase;
             background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
@@ -104,6 +98,14 @@
             transform: translateY(0px);
             white-space: nowrap;
             margin-right: -2px;
+            display: inline-block;
+        }
+
+        /* html2canvasで保存する際、background-clipを透過カラーに変更して四角い影を防ぐクラス */
+        .html2canvas-fallback {
+            background: none !important;
+            -webkit-text-fill-color: initial !important;
+            color: var(--neon-blue) !important;
         }
 
         .title-sub {
@@ -116,7 +118,6 @@
             margin-right: -6px;
         }
 
-        /* ガイドライン */
         .grid-overlay {
             position: absolute;
             top: 0;
@@ -153,7 +154,6 @@
             background: rgba(0, 240, 255, 0.4);
         }
 
-        /* 右側：コントローラーパネル */
         .control-panel {
             width: 380px;
             background: rgba(15, 15, 25, 0.95);
@@ -343,7 +343,6 @@
 </head>
 <body>
 
-    <!-- 左側：撮影・作成ステージ -->
     <div class="stage-area">
         <div class="canvas-wrapper">
             <div id="icon-canvas" class="icon-canvas mode-grad">
@@ -354,14 +353,11 @@
         </div>
     </div>
 
-    <!-- 右側：設定パネル -->
     <div class="control-panel">
         <div class="panel-title">STUDIO CONTROLS</div>
 
-        <!-- ダウンロード実行ボタン -->
         <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
 
-        <!-- モード選択 -->
         <div class="control-group">
             <div class="control-label">用途・アスペクト比選択</div>
             <div class="mode-selector">
@@ -371,7 +367,6 @@
             </div>
         </div>
 
-        <!-- 背景グラデーション設定 -->
         <div class="control-group">
             <div class="control-label">背景モード選択</div>
             <div class="mode-selector">
@@ -379,36 +374,36 @@
                 <button id="bg-mode-grad" class="mode-btn active" onclick="setBgMode('grad')">2色グラデーション</button>
             </div>
             
-            <div id="grad-controls" class="color-picker-grid">
-                <div>
-                    <div class="control-label" style="font-size: 10px;">カラー1</div>
-                    <input type="color" id="color-grad-1" value="#00f0ff" oninput="updateGradients()">
+            <div id="grad-controls">
+                <div class="color-picker-grid">
+                    <div>
+                        <div class="control-label" style="font-size: 10px;">カラー1</div>
+                        <input type="color" id="color-grad-1" value="#00f0ff" oninput="updateGradients()">
+                    </div>
+                    <div>
+                        <div class="control-label" style="font-size: 10px;">カラー2</div>
+                        <input type="color" id="color-grad-2" value="#ff007f" oninput="updateGradients()">
+                    </div>
                 </div>
-                <div>
-                    <div class="control-label" style="font-size: 10px;">カラー2</div>
-                    <input type="color" id="color-grad-2" value="#ff007f" oninput="updateGradients()">
-                </div>
+                <div class="control-label" style="margin-top: 8px;">背景透明度 / 濃さ <span id="val-bg-opacity" class="val">22%</span></div>
+                <input type="range" id="range-bg-opacity" min="0" max="100" value="22" oninput="updateGradients()">
             </div>
         </div>
 
-        <!-- サイズコントロール -->
         <div class="control-group">
             <div class="control-label">プリセットサイズ</div>
-            <!-- アイコン用 -->
             <div id="presets-icon" class="preset-grid">
                 <button class="preset-btn" onclick="setCanvasSize(512, 512)">512×512 (Square)</button>
                 <button class="preset-btn" onclick="setCanvasSize(1024, 1024)">1024×1024 (HD Square)</button>
                 <button class="preset-btn" onclick="setCanvasSize(256, 256)">256×256 (Small)</button>
                 <button class="preset-btn" onclick="setCanvasSize(180, 180)">180×180 (App Icon)</button>
             </div>
-            <!-- 横動画用 (16:9) -->
             <div id="presets-video" class="preset-grid" style="display: none;">
                 <button class="preset-btn" onclick="setCanvasSize(1920, 1080)">1920×1080 (FHD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(1280, 720)">1280×720 (HD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(854, 480)">854×480 (SD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(640, 360)">640×360 (360p Video)</button>
             </div>
-            <!-- バナー/ヘッダー用 -->
             <div id="presets-banner" class="preset-grid" style="display: none;">
                 <button class="preset-btn" onclick="setCanvasSize(1200, 630)">1200×630 (OGP/SNS)</button>
                 <button class="preset-btn" onclick="setCanvasSize(800, 400)">800×400 (Card)</button>
@@ -423,7 +418,6 @@
             <input type="range" id="range-height" min="100" max="2500" step="10" value="512" oninput="manualSizeChange()">
         </div>
 
-        <!-- テキスト変更 -->
         <div class="control-group">
             <div class="control-label">メインタイトル</div>
             <input type="text" id="input-title" value="Game Portal" oninput="updateText()">
@@ -431,7 +425,6 @@
             <input type="text" id="input-sub" value="NEXT GENERATION" oninput="updateText()">
         </div>
 
-        <!-- メインタイトル微調整 -->
         <div class="control-group">
             <div class="control-label">メインフォントサイズ <span id="val-title-size" class="val">42px</span></div>
             <input type="range" id="range-title-size" min="12" max="300" value="42" oninput="render()">
@@ -443,7 +436,6 @@
             <input type="range" id="range-title-spacing" min="-2" max="60" value="2" oninput="render()">
         </div>
 
-        <!-- サブタイトル微調整 -->
         <div class="control-group">
             <div class="control-label">サブフォントサイズ <span id="val-sub-size" class="val">16px</span></div>
             <input type="range" id="range-sub-size" min="8" max="150" value="16" oninput="render()">
@@ -455,7 +447,6 @@
             <input type="range" id="range-sub-spacing" min="0" max="60" value="6" oninput="render()">
         </div>
 
-        <!-- エフェクト・枠線調整 -->
         <div class="control-group">
             <div class="control-label">ネオン発光強度 (Glow) <span id="val-glow" class="val">20px</span></div>
             <input type="range" id="range-glow" min="0" max="100" value="20" oninput="render()">
@@ -464,7 +455,6 @@
             <input type="range" id="range-radius" min="0" max="50" value="0" oninput="render()">
         </div>
 
-        <!-- ガイド線表示 -->
         <div class="control-group">
             <button id="grid-toggle-btn" class="toggle-btn" onclick="toggleGrid()">中央ガイド線を表示</button>
         </div>
@@ -499,7 +489,7 @@
             document.getElementById('bg-mode-solid').classList.toggle('active', mode === 'solid');
             document.getElementById('bg-mode-grad').classList.toggle('active', mode === 'grad');
             
-            document.getElementById('grad-controls').style.display = mode === 'grad' ? 'grid' : 'none';
+            document.getElementById('grad-controls').style.display = mode === 'grad' ? 'block' : 'none';
 
             if (mode === 'grad') {
                 canvas.classList.add('mode-grad');
@@ -518,22 +508,24 @@
         function updateGradients() {
             const c1 = document.getElementById('color-grad-1').value;
             const c2 = document.getElementById('color-grad-2').value;
+            const opacityVal = parseInt(document.getElementById('range-bg-opacity').value) / 100;
 
-            document.documentElement.style.setProperty('--grad-color1', hexToRgba(c1, 0.22));
-            document.documentElement.style.setProperty('--grad-color2', hexToRgba(c2, 0.22));
+            document.getElementById('val-bg-opacity').innerText = Math.round(opacityVal * 100) + '%';
+
+            document.documentElement.style.setProperty('--grad-color1', hexToRgba(c1, opacityVal));
+            document.documentElement.style.setProperty('--grad-color2', hexToRgba(c2, opacityVal));
         }
 
         function recalculateGradientCenter(w, h) {
-            // キャンバスのアスペクト比に応じてグラデーションの中心位置(%)を動的に調整
             const ratio = w / h;
 
             let x1 = 30, y1 = 35;
             let x2 = 70, y2 = 65;
 
-            if (ratio > 1.5) { // 横長サイズの場合
+            if (ratio > 1.5) {
                 x1 = 20;
                 x2 = 80;
-            } else if (ratio < 0.7) { // 縦長サイズの場合
+            } else if (ratio < 0.7) {
                 y1 = 20;
                 y2 = 80;
             }
@@ -654,6 +646,11 @@
             const originalGridState = grid.style.display;
             grid.style.display = 'none';
 
+            const titleLogo = document.getElementById('title-logo');
+            
+            // html2canvas用フォールバック設定
+            titleLogo.classList.add('html2canvas-fallback');
+
             const canvasArea = document.getElementById('icon-canvas');
 
             html2canvas(canvasArea, {
@@ -662,6 +659,7 @@
                 useCORS: true
             }).then(canvas => {
                 grid.style.display = originalGridState;
+                titleLogo.classList.remove('html2canvas-fallback');
 
                 const link = document.createElement('a');
                 let filename = 'app-icon.png';
@@ -674,7 +672,6 @@
             });
         }
 
-        // 初期化実行
         updateGradients();
         render();
     </script>
