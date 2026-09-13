@@ -201,14 +201,30 @@
             color: var(--text-muted);
         }
 
-        input[type="range"], select {
-            width: 100%;
+        .input-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            flex: 1;
             accent-color: var(--primary);
+            background: var(--bg);
+        }
+
+        input[type="number"], select {
             background: var(--bg);
             color: var(--text);
             border: 1px solid var(--border);
-            padding: 4px;
+            padding: 4px 6px;
             border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        input[type="number"] {
+            width: 70px;
+            text-align: right;
         }
 
         .checkbox-label {
@@ -517,20 +533,32 @@
                     editorHtml = `
                         <div class="editor-grid">
                             <div class="control-group">
-                                <label>開始位置: <span id="stVal_${index}">${item.startTime.toFixed(2)}s</span></label>
-                                <input type="range" min="0" max="${item.duration}" step="0.01" value="${item.startTime}" oninput="updateParam(${index}, 'startTime', this.value)">
+                                <label>開始位置 (秒)</label>
+                                <div class="input-row">
+                                    <input type="range" id="stRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.startTime}" oninput="updateParam(${index}, 'startTime', this.value, 'range')">
+                                    <input type="number" id="stNum_${index}" step="0.01" value="${item.startTime.toFixed(2)}" oninput="updateParam(${index}, 'startTime', this.value, 'number')">
+                                </div>
                             </div>
                             <div class="control-group">
-                                <label>終了位置: <span id="etVal_${index}">${item.endTime.toFixed(2)}s</span></label>
-                                <input type="range" min="0" max="${item.duration}" step="0.01" value="${item.endTime}" oninput="updateParam(${index}, 'endTime', this.value)">
+                                <label>終了位置 (秒)</label>
+                                <div class="input-row">
+                                    <input type="range" id="etRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.endTime}" oninput="updateParam(${index}, 'endTime', this.value, 'range')">
+                                    <input type="number" id="etNum_${index}" step="0.01" value="${item.endTime.toFixed(2)}" oninput="updateParam(${index}, 'endTime', this.value, 'number')">
+                                </div>
                             </div>
                             <div class="control-group">
-                                <label>再生速度: <span id="spVal_${index}">${item.speed}x</span></label>
-                                <input type="range" min="0.25" max="5.0" step="0.05" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value)">
+                                <label>再生速度 (倍)</label>
+                                <div class="input-row">
+                                    <input type="range" id="spRange_${index}" min="0.25" max="5.0" step="0.05" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'range')">
+                                    <input type="number" id="spNum_${index}" step="0.1" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'number')">
+                                </div>
                             </div>
                             <div class="control-group">
-                                <label>音量: <span id="volVal_${index}">${Math.round(item.volume * 100)}%</span></label>
-                                <input type="range" min="0" max="10.0" step="0.05" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value)">
+                                <label>音量 (倍)</label>
+                                <div class="input-row">
+                                    <input type="range" id="volRange_${index}" min="0" max="10.0" step="0.05" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'range')">
+                                    <input type="number" id="volNum_${index}" step="0.1" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'number')">
+                                </div>
                             </div>
                             <div class="control-group">
                                 <label>フィルター</label>
@@ -564,20 +592,54 @@
             processBtn.disabled = fileItems.length === 0;
         }
 
-        window.updateParam = function(index, param, value) {
+        window.updateParam = function(index, param, value, sourceType = 'direct') {
             const item = fileItems[index];
+            const numVal = parseFloat(value);
+
             if (param === 'startTime') {
-                item.startTime = Math.min(parseFloat(value), item.endTime - 0.1);
-                document.getElementById(`stVal_${index}`).textContent = item.startTime.toFixed(2) + 's';
+                const val = isNaN(numVal) ? 0 : Math.max(0, numVal);
+                item.startTime = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`stRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`stNum_${index}`);
+                    if (el) el.value = val.toFixed(2);
+                }
             } else if (param === 'endTime') {
-                item.endTime = Math.max(parseFloat(value), item.startTime + 0.1);
-                document.getElementById(`etVal_${index}`).textContent = item.endTime.toFixed(2) + 's';
+                const val = isNaN(numVal) ? item.duration : valConstraint(numVal, 0, item.duration);
+                item.endTime = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`etRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`etNum_${index}`);
+                    if (el) el.value = val.toFixed(2);
+                }
             } else if (param === 'speed') {
-                item.speed = parseFloat(value);
-                document.getElementById(`spVal_${index}`).textContent = item.speed + 'x';
+                const val = isNaN(numVal) ? 1.0 : Math.max(0.01, numVal); // 最低0.01倍
+                item.speed = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`spRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`spNum_${index}`);
+                    if (el) el.value = val;
+                }
             } else if (param === 'volume') {
-                item.volume = parseFloat(value);
-                document.getElementById(`volVal_${index}`).textContent = Math.round(item.volume * 100) + '%';
+                const val = isNaN(numVal) ? 1.0 : Math.max(0, numVal); // 0以上なら無限に設定可能
+                item.volume = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`volRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`volNum_${index}`);
+                    if (el) el.value = val;
+                }
             } else if (param === 'filter') {
                 item.filter = value;
             } else if (param === 'reverse') {
@@ -588,6 +650,10 @@
                 togglePreview(index);
             }
         };
+
+        function valConstraint(val, min, max) {
+            return Math.min(Math.max(val, min), max);
+        }
 
         window.moveFile = function(index, direction) {
             stopPreview();
