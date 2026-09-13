@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Icon & Banner Studio - GAME PORTAL</title>
+    <!-- html2canvasライブラリ（Canvasキャプチャ・画像ダウンロード用） -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -14,8 +15,9 @@
             --text-main: #ffffff;
             --text-sub: #8a8a9e;
 
-            --grad-color1: rgba(0, 240, 255, 0.22);
-            --grad-color2: rgba(255, 0, 127, 0.22);
+            /* グラデーション動的計算用変数 */
+            --grad-color1: #00f0ff;
+            --grad-color2: #ff007f;
             --grad-x1: 30%;
             --grad-y1: 35%;
             --grad-x2: 70%;
@@ -40,6 +42,7 @@
             user-select: none;
         }
 
+        /* 左側：プレビュー作業領域 */
         .stage-area {
             flex: 1;
             display: flex;
@@ -49,19 +52,20 @@
             background: #000;
             position: relative;
             overflow: auto;
-            padding: 40px;
-            transition: all 0.3s ease;
+            padding: 20px;
         }
 
+        /* プレビューキャンバス Wrapper */
         .canvas-wrapper {
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            max-width: 100%;
-            max-height: 100%;
+            transform-origin: center center;
+            transition: transform 0.2s ease;
         }
 
+        /* プレビューキャンバス */
         .icon-canvas {
             width: 512px;
             height: 512px;
@@ -79,19 +83,20 @@
             flex-shrink: 0;
         }
 
+        /* 2色グラデーションモード用CSSクラス */
         .icon-canvas.mode-grad {
             background-image: 
                 radial-gradient(circle at var(--grad-x1) var(--grad-y1), var(--grad-color1) 0%, transparent 60%),
                 radial-gradient(circle at var(--grad-x2) var(--grad-y2), var(--grad-color2) 0%, transparent 60%);
         }
 
+        /* タイトル・サブタイトルのスタイル */
         .title-logo {
             font-size: 42px;
             font-weight: 900;
             letter-spacing: 2px;
             text-transform: uppercase;
             background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
-            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
@@ -99,13 +104,6 @@
             transform: translateY(0px);
             white-space: nowrap;
             margin-right: -2px;
-            display: inline-block;
-        }
-
-        .html2canvas-fallback {
-            background: none !important;
-            -webkit-text-fill-color: initial !important;
-            color: var(--neon-blue) !important;
         }
 
         .title-sub {
@@ -118,6 +116,7 @@
             margin-right: -6px;
         }
 
+        /* ガイドライン */
         .grid-overlay {
             position: absolute;
             top: 0;
@@ -154,6 +153,7 @@
             background: rgba(0, 240, 255, 0.4);
         }
 
+        /* 右側：コントローラーパネル */
         .control-panel {
             width: 380px;
             background: rgba(15, 15, 25, 0.95);
@@ -306,12 +306,6 @@
             color: var(--neon-pink);
         }
 
-        .action-btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
         .download-btn {
             background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
             border: none;
@@ -332,91 +326,14 @@
             box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
         }
 
-        .screenshot-mode-btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(0, 240, 255, 0.4);
-            color: var(--neon-blue);
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.2s;
-        }
-
-        .screenshot-mode-btn:hover {
-            background: rgba(0, 240, 255, 0.15);
-        }
-
-        /* --- スクリーンショット表示用スタイル（スマホ画面フィット調整） --- */
-        body.screenshot-mode {
-            background-color: #000;
-        }
-
-        body.screenshot-mode .control-panel {
-            display: none !important;
-        }
-
-        body.screenshot-mode .stage-area {
-            padding: 16px;
-            width: 100vw;
-            height: 100vh;
-            cursor: pointer;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        body.screenshot-mode .canvas-wrapper {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        body.screenshot-mode .icon-canvas {
-            max-width: 90vw !important;
-            max-height: 80vh !important;
-            width: auto !important;
-            height: auto !important;
-            aspect-ratio: var(--canvas-aspect, 1 / 1);
-            box-sizing: border-box;
-        }
-
-        body.screenshot-mode .grid-overlay {
-            display: none !important;
-        }
-
-        .screenshot-hint {
-            position: absolute;
-            top: 16px;
-            background: rgba(0, 0, 0, 0.75);
-            color: #fff;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 11px;
-            pointer-events: none;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            display: none;
-            z-index: 100;
-            text-align: center;
-        }
-
-        body.screenshot-mode .screenshot-hint {
-            display: block;
-        }
-
         @media (max-width: 900px) {
             body {
                 flex-direction: column;
                 overflow: auto;
             }
             .stage-area {
-                min-height: 400px;
-                padding: 20px;
+                min-height: 380px;
+                padding: 15px;
             }
             .control-panel {
                 width: 100%;
@@ -426,9 +343,9 @@
 </head>
 <body>
 
-    <div class="stage-area" id="stage-area" onclick="exitScreenshotMode()">
-        <div class="screenshot-hint">タップ / クリックで編集モードに戻る</div>
-        <div class="canvas-wrapper">
+    <!-- 左側：撮影・作成ステージ -->
+    <div class="stage-area" id="stage-area">
+        <div class="canvas-wrapper" id="canvas-wrapper">
             <div id="icon-canvas" class="icon-canvas mode-grad">
                 <div id="grid-overlay" class="grid-overlay"></div>
                 <div id="title-logo" class="title-logo">Game Portal</div>
@@ -437,14 +354,23 @@
         </div>
     </div>
 
+    <!-- 右側：設定パネル -->
     <div class="control-panel">
         <div class="panel-title">STUDIO CONTROLS</div>
 
-        <div class="action-btn-group">
-            <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
-            <button class="screenshot-mode-btn" onclick="enterScreenshotMode()">📷 スクリーンショットモード</button>
+        <!-- 画面表示モード（プレビュー表示切り替え） -->
+        <div class="control-group">
+            <div class="control-label">表示モード設定</div>
+            <div class="mode-selector">
+                <button id="view-mode-fit" class="mode-btn active" onclick="setViewMode('fit')">画面に収める (Fit)</button>
+                <button id="view-mode-real" class="mode-btn" onclick="setViewMode('real')">原寸大 (100%)</button>
+            </div>
         </div>
 
+        <!-- ダウンロード実行ボタン -->
+        <button class="download-btn" onclick="downloadImage()">PNG画像として保存</button>
+
+        <!-- モード選択 -->
         <div class="control-group">
             <div class="control-label">用途・アスペクト比選択</div>
             <div class="mode-selector">
@@ -454,6 +380,7 @@
             </div>
         </div>
 
+        <!-- 背景グラデーション設定 -->
         <div class="control-group">
             <div class="control-label">背景モード選択</div>
             <div class="mode-selector">
@@ -461,36 +388,36 @@
                 <button id="bg-mode-grad" class="mode-btn active" onclick="setBgMode('grad')">2色グラデーション</button>
             </div>
             
-            <div id="grad-controls">
-                <div class="color-picker-grid">
-                    <div>
-                        <div class="control-label" style="font-size: 10px;">カラー1</div>
-                        <input type="color" id="color-grad-1" value="#00f0ff" oninput="updateGradients()">
-                    </div>
-                    <div>
-                        <div class="control-label" style="font-size: 10px;">カラー2</div>
-                        <input type="color" id="color-grad-2" value="#ff007f" oninput="updateGradients()">
-                    </div>
+            <div id="grad-controls" class="color-picker-grid">
+                <div>
+                    <div class="control-label" style="font-size: 10px;">カラー1</div>
+                    <input type="color" id="color-grad-1" value="#00f0ff" oninput="updateGradients()">
                 </div>
-                <div class="control-label" style="margin-top: 8px;">背景透明度 / 濃さ <span id="val-bg-opacity" class="val">22%</span></div>
-                <input type="range" id="range-bg-opacity" min="0" max="100" value="22" oninput="updateGradients()">
+                <div>
+                    <div class="control-label" style="font-size: 10px;">カラー2</div>
+                    <input type="color" id="color-grad-2" value="#ff007f" oninput="updateGradients()">
+                </div>
             </div>
         </div>
 
+        <!-- サイズコントロール -->
         <div class="control-group">
             <div class="control-label">プリセットサイズ</div>
+            <!-- アイコン用 -->
             <div id="presets-icon" class="preset-grid">
                 <button class="preset-btn" onclick="setCanvasSize(512, 512)">512×512 (Square)</button>
                 <button class="preset-btn" onclick="setCanvasSize(1024, 1024)">1024×1024 (HD Square)</button>
                 <button class="preset-btn" onclick="setCanvasSize(256, 256)">256×256 (Small)</button>
                 <button class="preset-btn" onclick="setCanvasSize(180, 180)">180×180 (App Icon)</button>
             </div>
+            <!-- 横動画用 (16:9) -->
             <div id="presets-video" class="preset-grid" style="display: none;">
                 <button class="preset-btn" onclick="setCanvasSize(1920, 1080)">1920×1080 (FHD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(1280, 720)">1280×720 (HD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(854, 480)">854×480 (SD Video)</button>
                 <button class="preset-btn" onclick="setCanvasSize(640, 360)">640×360 (360p Video)</button>
             </div>
+            <!-- バナー/ヘッダー用 -->
             <div id="presets-banner" class="preset-grid" style="display: none;">
                 <button class="preset-btn" onclick="setCanvasSize(1200, 630)">1200×630 (OGP/SNS)</button>
                 <button class="preset-btn" onclick="setCanvasSize(800, 400)">800×400 (Card)</button>
@@ -505,6 +432,7 @@
             <input type="range" id="range-height" min="100" max="2500" step="10" value="512" oninput="manualSizeChange()">
         </div>
 
+        <!-- テキスト変更 -->
         <div class="control-group">
             <div class="control-label">メインタイトル</div>
             <input type="text" id="input-title" value="Game Portal" oninput="updateText()">
@@ -512,6 +440,7 @@
             <input type="text" id="input-sub" value="NEXT GENERATION" oninput="updateText()">
         </div>
 
+        <!-- メインタイトル微調整 -->
         <div class="control-group">
             <div class="control-label">メインフォントサイズ <span id="val-title-size" class="val">42px</span></div>
             <input type="range" id="range-title-size" min="12" max="300" value="42" oninput="render()">
@@ -523,6 +452,7 @@
             <input type="range" id="range-title-spacing" min="-2" max="60" value="2" oninput="render()">
         </div>
 
+        <!-- サブタイトル微調整 -->
         <div class="control-group">
             <div class="control-label">サブフォントサイズ <span id="val-sub-size" class="val">16px</span></div>
             <input type="range" id="range-sub-size" min="8" max="150" value="16" oninput="render()">
@@ -534,6 +464,7 @@
             <input type="range" id="range-sub-spacing" min="0" max="60" value="6" oninput="render()">
         </div>
 
+        <!-- エフェクト・枠線調整 -->
         <div class="control-group">
             <div class="control-label">ネオン発光強度 (Glow) <span id="val-glow" class="val">20px</span></div>
             <input type="range" id="range-glow" min="0" max="100" value="20" oninput="render()">
@@ -542,6 +473,7 @@
             <input type="range" id="range-radius" min="0" max="50" value="0" oninput="render()">
         </div>
 
+        <!-- ガイド線表示 -->
         <div class="control-group">
             <button id="grid-toggle-btn" class="toggle-btn" onclick="toggleGrid()">中央ガイド線を表示</button>
         </div>
@@ -550,19 +482,49 @@
     <script>
         let currentMode = 'icon';
         let bgMode = 'grad';
-        let isScreenshotMode = false;
+        let viewMode = 'fit'; // 'fit' または 'real'
 
-        function enterScreenshotMode() {
-            isScreenshotMode = true;
-            document.body.classList.add('screenshot-mode');
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('view-mode-fit').classList.toggle('active', mode === 'fit');
+            document.getElementById('view-mode-real').classList.toggle('active', mode === 'real');
+            updatePreviewScale();
         }
 
-        function exitScreenshotMode() {
-            if (isScreenshotMode) {
-                isScreenshotMode = false;
-                document.body.classList.remove('screenshot-mode');
+        function updatePreviewScale() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            const stage = document.getElementById('stage-area');
+            const canvas = document.getElementById('icon-canvas');
+
+            if (viewMode === 'real') {
+                wrapper.style.transform = 'scale(1)';
+                return;
             }
+
+            // キャンバスの本来のサイズ
+            const targetW = parseInt(canvas.style.width) || 512;
+            const targetH = parseInt(canvas.style.height) || 512;
+
+            // ステージ領域の表示可能サイズ（余白分を引く）
+            const padding = 40;
+            const availableW = stage.clientWidth - padding;
+            const availableH = stage.clientHeight - padding;
+
+            if (availableW <= 0 || availableH <= 0) return;
+
+            // 縦横のスケール比率を計算し、小さい方に合わせる
+            const scaleX = availableW / targetW;
+            const scaleY = availableH / targetH;
+            let scale = Math.min(scaleX, scaleY);
+
+            // 1倍以上には拡大せず、画面に収まるように縮小のみ適用
+            if (scale > 1) scale = 1;
+
+            wrapper.style.transform = `scale(${scale})`;
         }
+
+        // 画面リサイズ時にスケールを自動再計算
+        window.addEventListener('resize', updatePreviewScale);
 
         function switchMode(mode) {
             currentMode = mode;
@@ -589,7 +551,7 @@
             document.getElementById('bg-mode-solid').classList.toggle('active', mode === 'solid');
             document.getElementById('bg-mode-grad').classList.toggle('active', mode === 'grad');
             
-            document.getElementById('grad-controls').style.display = mode === 'grad' ? 'block' : 'none';
+            document.getElementById('grad-controls').style.display = mode === 'grad' ? 'grid' : 'none';
 
             if (mode === 'grad') {
                 canvas.classList.add('mode-grad');
@@ -608,12 +570,9 @@
         function updateGradients() {
             const c1 = document.getElementById('color-grad-1').value;
             const c2 = document.getElementById('color-grad-2').value;
-            const opacityVal = parseInt(document.getElementById('range-bg-opacity').value) / 100;
 
-            document.getElementById('val-bg-opacity').innerText = Math.round(opacityVal * 100) + '%';
-
-            document.documentElement.style.setProperty('--grad-color1', hexToRgba(c1, opacityVal));
-            document.documentElement.style.setProperty('--grad-color2', hexToRgba(c2, opacityVal));
+            document.documentElement.style.setProperty('--grad-color1', hexToRgba(c1, 0.22));
+            document.documentElement.style.setProperty('--grad-color2', hexToRgba(c2, 0.22));
         }
 
         function recalculateGradientCenter(w, h) {
@@ -678,14 +637,11 @@
             const canvas = document.getElementById('icon-canvas');
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
-            
-            /* スクリーンショット時のアスペクト比固定用 */
-            document.documentElement.style.setProperty('--canvas-aspect', `${w} / ${h}`);
-
             document.getElementById('val-width').innerText = w + 'px';
             document.getElementById('val-height').innerText = h + 'px';
 
             render();
+            updatePreviewScale();
         }
 
         function updateText() {
@@ -747,11 +703,14 @@
 
         function downloadImage() {
             const grid = document.getElementById('grid-overlay');
+            const wrapper = document.getElementById('canvas-wrapper');
+            
             const originalGridState = grid.style.display;
-            grid.style.display = 'none';
+            const originalTransform = wrapper.style.transform;
 
-            const titleLogo = document.getElementById('title-logo');
-            titleLogo.classList.add('html2canvas-fallback');
+            // キャプチャ用に表示崩れを防ぐため一時的に等倍・ガイド削除
+            grid.style.display = 'none';
+            wrapper.style.transform = 'scale(1)';
 
             const canvasArea = document.getElementById('icon-canvas');
 
@@ -760,8 +719,9 @@
                 scale: 2,
                 useCORS: true
             }).then(canvas => {
+                // 元の表示状態に復元
                 grid.style.display = originalGridState;
-                titleLogo.classList.remove('html2canvas-fallback');
+                wrapper.style.transform = originalTransform;
 
                 const link = document.createElement('a');
                 let filename = 'app-icon.png';
@@ -774,8 +734,10 @@
             });
         }
 
+        // 初期化実行
         updateGradients();
         render();
+        updatePreviewScale();
     </script>
 </body>
 </html>
