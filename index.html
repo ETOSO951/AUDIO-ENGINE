@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Audio & MOV/MP4 Editor</title>
+    <title>Audio & MOV/MP4 Editor</title>
     <!-- FFmpeg.wasm CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
@@ -145,12 +145,13 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 60%;
+            max-width: 50%;
         }
 
         .file-controls {
             display: flex;
             gap: 6px;
+            align-items: center;
         }
 
         .btn-mini {
@@ -161,6 +162,16 @@
             border-radius: 4px;
             font-size: 0.8rem;
             cursor: pointer;
+        }
+
+        .btn-play {
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-play.playing {
+            background: #f59e0b;
         }
 
         .btn-danger {
@@ -234,7 +245,7 @@
 
     <div class="card">
         <label class="file-input-wrapper">
-            <span id="fileInputLabel">ファイルを選択 (.mov / .mp4 / .mp3 / .wav)</span>
+            <span id="fileInputLabel">ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)</span>
             <input type="file" id="audioFiles" accept="audio/*,video/*,.mov,.mp4,.wav,.mp3" multiple>
         </label>
         <div id="statusMsg" class="status-msg"></div>
@@ -268,6 +279,8 @@
         let currentMode = 'edit';
         let fileItems = [];
         let audioContext = null;
+        let activeSourceNode = null;
+        let playingIndex = -1;
 
         function getAudioContext() {
             if (!audioContext) {
@@ -280,6 +293,7 @@
         }
 
         window.setMode = function(mode) {
+            stopPreview();
             currentMode = mode;
             fileItems = [];
             updateFileList();
@@ -300,11 +314,9 @@
             }
         };
 
-        // FFmpegを使って動画/音声ファイルを確実にWAVデータへ変換・デコードする関数
         async function loadAudioBufferWithFFmpeg(file) {
             const ctx = getAudioContext();
 
-            // 1. 通常のブラウザ標準デコードを試行 (MP3 / WAVなど)
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 return await ctx.decodeAudioData(arrayBuffer);
@@ -312,7 +324,6 @@
                 console.warn('標準デコード不能。FFmpegエンジンを起動します:', file.name);
             }
 
-            // 2. 標準で失敗した場合、FFmpeg.wasmを使って音声(PCM WAV)を抽出
             if (!ffmpeg.isLoaded()) {
                 statusMsg.textContent = 'FFmpegエンジン初期化中...';
                 await ffmpeg.load();
@@ -324,13 +335,10 @@
             const outputFileName = 'output_' + Date.now() + '.wav';
 
             ffmpeg.FS('writeFile', safeFileName, await fetchFile(file));
-
-            // 音声のみをPCM 16bit / 44.1kHz WAV形式で抽出
             await ffmpeg.run('-i', safeFileName, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputFileName);
 
             const data = ffmpeg.FS('readFile', outputFileName);
 
-            // メモリのクリーンアップ
             try {
                 ffmpeg.FS('unlink', safeFileName);
                 ffmpeg.FS('unlink', outputFileName);
@@ -375,20 +383,131 @@
             processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
         });
 
+        function stopPreview() {
+            if (activeSourceNode) {
+                try {
+                    activeSourceNode.stop();
+                    activeSourceNode.disconnect();
+                } catch (e) {}
+                activeSourceNode = null;
+            }
+            playingIndex = -1;
+            updatePlayButtons();
+        }
+
+        window.togglePreview = function(index) {
+            const ctx = getAudioContext();
+
+            if (playingIndex === index) {
+                stopPreview();
+                return;
+            }
+
+            stopPreview();
+
+            const item = fileItems[index];
+            const numChannels = item.buffer.numberOfChannels;
+            const sampleRate = item.buffer.sampleRate;
+
+            let srcBuffer = item.buffer;
+
+            if (item.reverse) {
+                srcBuffer = ctx.createBuffer(numChannels, item.buffer.length, sampleRate);
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const inData = item.buffer.getChannelData(ch);
+                    const outData = srcBuffer.getChannelData(ch);
+                    for (let i = 0; i < inData.length; i++) {
+                        outData[i] = inData[inData.length - 1 - i];
+                    }
+                }
+            }
+
+            const source = ctx.createBufferSource();
+            source.buffer = srcBuffer;
+            source.playbackRate.value = item.speed;
+
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = item.volume;
+
+            let lastNode = source;
+            if (item.filter !== 'none') {
+                const filterNode = ctx.createBiquadFilter();
+                if (item.filter === 'lowpass') {
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.value = 1000;
+                } else if (item.filter === 'highpass') {
+                    filterNode.type = 'highpass';
+                    filterNode.frequency.value = 2000;
+                } else if (item.filter === 'bassboost') {
+                    filterNode.type = 'lowshelf';
+                    filterNode.frequency.value = 200;
+                    filterNode.gain.value = 10;
+                }
+                lastNode.connect(filterNode);
+                lastNode = filterNode;
+            }
+
+            lastNode.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            const trimDuration = item.endTime - item.startTime;
+            let actualStart = item.startTime;
+            if (item.reverse) {
+                actualStart = item.duration - item.endTime;
+            }
+
+            source.start(0, actualStart, trimDuration);
+            activeSourceNode = source;
+            playingIndex = index;
+
+            source.onended = () => {
+                if (playingIndex === index) {
+                    playingIndex = -1;
+                    activeSourceNode = null;
+                    updatePlayButtons();
+                }
+            };
+
+            updatePlayButtons();
+        };
+
+        function updatePlayButtons() {
+            fileItems.forEach((_, idx) => {
+                const btn = document.getElementById(`playBtn_${idx}`);
+                if (btn) {
+                    if (idx === playingIndex) {
+                        btn.textContent = '■ 停止';
+                        btn.classList.add('playing');
+                    } else {
+                        btn.textContent = '▶ 再生';
+                        btn.classList.remove('playing');
+                    }
+                }
+            });
+        }
+
         function updateFileList() {
             fileListEl.innerHTML = '';
             fileItems.forEach((item, index) => {
                 const li = document.createElement('li');
                 li.className = 'file-item';
 
+                const isPlaying = playingIndex === index;
+
                 const controlsHtml = currentMode === 'edit' ? `
                     <div class="file-controls">
+                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
+                            ${isPlaying ? '■ 停止' : '▶ 再生'}
+                        </button>
                         <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
                         <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === fileItems.length - 1 ? 'disabled' : ''}>▼</button>
                         <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
                     </div>
                 ` : `
                     <div class="file-controls">
+                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
+                            ${isPlaying ? '■ 停止' : '▶ 再生'}
+                        </button>
                         <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
                     </div>
                 `;
@@ -464,9 +583,14 @@
             } else if (param === 'reverse') {
                 item.reverse = value;
             }
+
+            if (playingIndex === index) {
+                togglePreview(index);
+            }
         };
 
         window.moveFile = function(index, direction) {
+            stopPreview();
             const targetIndex = index + direction;
             if (targetIndex >= 0 && targetIndex < fileItems.length) {
                 const temp = fileItems[index];
@@ -477,11 +601,15 @@
         };
 
         window.removeFile = function(index) {
+            if (playingIndex === index) {
+                stopPreview();
+            }
             fileItems.splice(index, 1);
             updateFileList();
         };
 
         processBtn.addEventListener('click', async () => {
+            stopPreview();
             processBtn.disabled = true;
             processBtn.textContent = '処理中...';
 
