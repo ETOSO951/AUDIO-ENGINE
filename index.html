@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WAV Audio Editor</title>
+    <title>WAV Audio & MP4 Converter</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -45,6 +45,34 @@
             padding: 16px;
             margin-bottom: 16px;
             border: 1px solid var(--border);
+        }
+
+        /* モード切替タブ */
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
         }
 
         .file-input-wrapper {
@@ -161,11 +189,16 @@
 </head>
 <body>
 
-    <h1>WAV Audio Editor</h1>
+    <h1>WAV Audio & MP4 Converter</h1>
+
+    <div class="mode-selector">
+        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">WAV 編集・結合</button>
+        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">MP4 音声抽出</button>
+    </div>
 
     <div class="card">
         <label class="file-input-wrapper">
-            <span>ファイルを選択 (複数可)</span>
+            <span id="fileInputLabel">WAVファイルを選択 (複数可)</span>
             <input type="file" id="audioFiles" accept="audio/wav,audio/x-wav" multiple>
         </label>
         <ul id="fileList" class="file-list"></ul>
@@ -179,7 +212,7 @@
                 <span>開始位置</span>
                 <span id="startTimeLabel">0.00 秒</span>
             </div>
-            <input type="range" id="startRange" min="0" value="0" step="0.01">
+            <input type="range" id="startRange" min="0" value="0" step="0.0025">
         </div>
 
         <div class="range-container">
@@ -187,7 +220,7 @@
                 <span>終了位置</span>
                 <span id="endTimeLabel">0.00 秒</span>
             </div>
-            <input type="range" id="endRange" min="0" value="0" step="0.01">
+            <input type="range" id="endRange" min="0" value="0" step="0.0025">
         </div>
     </div>
 
@@ -202,6 +235,7 @@
 
     <script>
         const audioFileInput = document.getElementById('audioFiles');
+        const fileInputLabel = document.getElementById('fileInputLabel');
         const fileListEl = document.getElementById('fileList');
         const trimSection = document.getElementById('trimSection');
         const startRange = document.getElementById('startRange');
@@ -212,18 +246,52 @@
         const outputContainer = document.getElementById('outputContainer');
         const audioPreview = document.getElementById('audioPreview');
         const downloadBtn = document.getElementById('downloadBtn');
+        const modeEditBtn = document.getElementById('modeEditBtn');
+        const modeConvertBtn = document.getElementById('modeConvertBtn');
 
+        let currentMode = 'edit'; // 'edit' または 'convert'
         let audioFiles = [];
         let totalDuration = 0;
         let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
+        // モード切り替え関数
+        window.setMode = function(mode) {
+            currentMode = mode;
+            audioFiles = [];
+            updateFileList();
+            outputContainer.style.display = 'none';
+
+            if (mode === 'edit') {
+                modeEditBtn.classList.add('active');
+                modeConvertBtn.classList.remove('active');
+                fileInputLabel.textContent = 'WAVファイルを選択 (複数可)';
+                audioFileInput.accept = 'audio/wav,audio/x-wav';
+                audioFileInput.multiple = true;
+                processBtn.textContent = '書き出す (トリミング・結合)';
+            } else {
+                modeConvertBtn.classList.add('active');
+                modeEditBtn.classList.remove('active');
+                fileInputLabel.textContent = 'MP4動画を選択';
+                audioFileInput.accept = 'video/mp4';
+                audioFileInput.multiple = false;
+                processBtn.textContent = '音声(WAV)に変換';
+            }
+        };
+
         audioFileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
-            files.forEach(file => {
-                if (file.type.includes('wav') || file.name.endsWith('.wav')) {
-                    audioFiles.push(file);
+            if (currentMode === 'edit') {
+                files.forEach(file => {
+                    if (file.type.includes('wav') || file.name.endsWith('.wav')) {
+                        audioFiles.push(file);
+                    }
+                });
+            } else {
+                // MP4モードは1ファイルのみ
+                if (files.length > 0 && (files[0].type.includes('mp4') || files[0].name.endsWith('.mp4'))) {
+                    audioFiles = [files[0]];
                 }
-            });
+            }
             audioFileInput.value = '';
             updateFileList();
         });
@@ -233,19 +301,33 @@
             audioFiles.forEach((file, index) => {
                 const li = document.createElement('li');
                 li.className = 'file-item';
-                li.innerHTML = `
-                    <span class="file-name">${index + 1}. ${file.name}</span>
+                
+                const controlsHtml = currentMode === 'edit' ? `
                     <div class="file-controls">
                         <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
                         <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === audioFiles.length - 1 ? 'disabled' : ''}>▼</button>
                         <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
                     </div>
+                ` : `
+                    <div class="file-controls">
+                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
+                    </div>
+                `;
+
+                li.innerHTML = `
+                    <span class="file-name">${currentMode === 'edit' ? (index + 1) + '. ' : ''}${file.name}</span>
+                    ${controlsHtml}
                 `;
                 fileListEl.appendChild(li);
             });
 
             if (audioFiles.length > 0) {
-                calculateTotalDuration();
+                if (currentMode === 'edit') {
+                    calculateTotalDuration();
+                } else {
+                    trimSection.style.display = 'none';
+                    processBtn.disabled = false;
+                }
             } else {
                 trimSection.style.display = 'none';
                 processBtn.disabled = true;
@@ -306,62 +388,78 @@
             processBtn.textContent = '処理中...';
 
             try {
-                const buffers = [];
-                for (let file of audioFiles) {
+                if (currentMode === 'edit') {
+                    // --- WAV結合・トリミング処理 ---
+                    const buffers = [];
+                    for (let file of audioFiles) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const decodedData = await audioContext.decodeAudioData(arrayBuffer);
+                        buffers.push(decodedData);
+                    }
+
+                    const sampleRate = buffers[0].sampleRate;
+                    const numberOfChannels = buffers[0].numberOfChannels;
+                    const totalSamples = buffers.reduce((acc, buf) => acc + buf.length, 0);
+
+                    const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalSamples, sampleRate);
+
+                    for (let channel = 0; channel < numberOfChannels; channel++) {
+                        const outputData = mergedBuffer.getChannelData(channel);
+                        let offset = 0;
+                        for (let buf of buffers) {
+                            const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
+                            outputData.set(channelData, offset);
+                            offset += buf.length;
+                        }
+                    }
+
+                    const startTime = parseFloat(startRange.value);
+                    const endTime = parseFloat(endRange.value);
+                    const startSample = Math.floor(startTime * sampleRate);
+                    const endSample = Math.floor(endTime * sampleRate);
+                    const trimmedLength = endSample - startSample;
+
+                    const trimmedBuffer = audioContext.createBuffer(numberOfChannels, trimmedLength, sampleRate);
+
+                    for (let channel = 0; channel < numberOfChannels; channel++) {
+                        const inputData = mergedBuffer.getChannelData(channel);
+                        const outputData = trimmedBuffer.getChannelData(channel);
+                        for (let i = 0; i < trimmedLength; i++) {
+                            outputData[i] = inputData[startSample + i];
+                        }
+                    }
+
+                    const wavBlob = audioBufferToWav(trimmedBuffer);
+                    const url = URL.createObjectURL(wavBlob);
+
+                    audioPreview.src = url;
+                    downloadBtn.href = url;
+                    downloadBtn.download = `edited_${Date.now()}.wav`;
+                    outputContainer.style.display = 'block';
+
+                } else {
+                    // --- MP4 -> WAV 変換処理 ---
+                    const file = audioFiles[0];
                     const arrayBuffer = await file.arrayBuffer();
-                    const decodedData = await audioContext.decodeAudioData(arrayBuffer);
-                    buffers.push(decodedData);
+                    
+                    // Web Audio APIのdecodeAudioDataはMP4動画の音声トラック抽出にも対応
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    const url = URL.createObjectURL(wavBlob);
+
+                    audioPreview.src = url;
+                    downloadBtn.href = url;
+                    downloadBtn.download = `${file.name.replace(/\.[^/.]+$/, "")}.wav`;
+                    outputContainer.style.display = 'block';
                 }
-
-                // トラックを1つのバッファに結合
-                const sampleRate = buffers[0].sampleRate;
-                const numberOfChannels = buffers[0].numberOfChannels;
-                const totalSamples = buffers.reduce((acc, buf) => acc + buf.length, 0);
-
-                const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalSamples, sampleRate);
-
-                for (let channel = 0; channel < numberOfChannels; channel++) {
-                    const outputData = mergedBuffer.getChannelData(channel);
-                    let offset = 0;
-                    for (let buf of buffers) {
-                        const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
-                        outputData.set(channelData, offset);
-                        offset += buf.length;
-                    }
-                }
-
-                // トリミング適用
-                const startTime = parseFloat(startRange.value);
-                const endTime = parseFloat(endRange.value);
-                const startSample = Math.floor(startTime * sampleRate);
-                const endSample = Math.floor(endTime * sampleRate);
-                const trimmedLength = endSample - startSample;
-
-                const trimmedBuffer = audioContext.createBuffer(numberOfChannels, trimmedLength, sampleRate);
-
-                for (let channel = 0; channel < numberOfChannels; channel++) {
-                    const inputData = mergedBuffer.getChannelData(channel);
-                    const outputData = trimmedBuffer.getChannelData(channel);
-                    for (let i = 0; i < trimmedLength; i++) {
-                        outputData[i] = inputData[startSample + i];
-                    }
-                }
-
-                // WAVファイルエンコード
-                const wavBlob = audioBufferToWav(trimmedBuffer);
-                const url = URL.createObjectURL(wavBlob);
-
-                audioPreview.src = url;
-                downloadBtn.href = url;
-                downloadBtn.download = `edited_${Date.now()}.wav`;
-                outputContainer.style.display = 'block';
 
             } catch (err) {
-                alert('処理中にエラーが発生しました。');
+                alert('処理中にエラーが発生しました。ファイルの形式を確認してください。');
                 console.error(err);
             } finally {
                 processBtn.disabled = false;
-                processBtn.textContent = '書き出す (トリミング・結合)';
+                processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・結合)' : '音声(WAV)に変換';
             }
         });
 
