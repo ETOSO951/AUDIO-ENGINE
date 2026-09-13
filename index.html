@@ -166,7 +166,6 @@
             color: white;
         }
 
-        /* パラメータ編集パネル */
         .editor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -225,13 +224,13 @@
 
     <div class="mode-selector">
         <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">音声を編集・結合</button>
-        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">MP4 音声抽出</button>
+        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">動画から音声抽出</button>
     </div>
 
     <div class="card">
         <label class="file-input-wrapper">
-            <span id="fileInputLabel">音声ファイルを選択 (複数可)</span>
-            <input type="file" id="audioFiles" accept="audio/*" multiple>
+            <span id="fileInputLabel">音声・動画ファイルを選択 (複数可)</span>
+            <input type="file" id="audioFiles" accept="audio/*,video/*" multiple>
         </label>
         <ul id="fileList" class="file-list"></ul>
     </div>
@@ -257,8 +256,18 @@
         const modeConvertBtn = document.getElementById('modeConvertBtn');
 
         let currentMode = 'edit';
-        let fileItems = []; // 編集用メタデータを保持
-        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let fileItems = []; 
+        let audioContext = null;
+
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
+        }
 
         window.setMode = function(mode) {
             currentMode = mode;
@@ -269,15 +278,15 @@
             if (mode === 'edit') {
                 modeEditBtn.classList.add('active');
                 modeConvertBtn.classList.remove('active');
-                fileInputLabel.textContent = '音声ファイルを選択 (複数可)';
-                audioFileInput.accept = 'audio/*';
+                fileInputLabel.textContent = '音声・動画ファイルを選択 (複数可)';
+                audioFileInput.accept = 'audio/*,video/*';
                 audioFileInput.multiple = true;
                 processBtn.textContent = '書き出す (トリミング・編集・結合)';
             } else {
                 modeConvertBtn.classList.add('active');
                 modeEditBtn.classList.remove('active');
-                fileInputLabel.textContent = 'MP4動画を選択';
-                audioFileInput.accept = 'video/mp4';
+                fileInputLabel.textContent = '動画を選択 (MP4, MOV等)';
+                audioFileInput.accept = 'video/*,video/mp4,video/quicktime,.mov,.mp4';
                 audioFileInput.multiple = false;
                 processBtn.textContent = '音声(WAV)に変換';
             }
@@ -285,13 +294,17 @@
 
         audioFileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
             processBtn.disabled = true;
             processBtn.textContent = '読み込み中...';
+
+            const ctx = getAudioContext();
 
             for (let file of files) {
                 try {
                     const arrayBuffer = await file.arrayBuffer();
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
                     
                     fileItems.push({
                         file: file,
@@ -306,6 +319,7 @@
                     });
                 } catch (err) {
                     console.error('ファイル読み込みエラー:', file.name, err);
+                    alert(`「${file.name}」の読み込みに失敗しました。\n対応していないフォーマットか、ファイルが破損している可能性があります。`);
                 }
             }
 
@@ -426,23 +440,20 @@
             processBtn.textContent = '処理中...';
 
             try {
+                const ctx = getAudioContext();
                 const processedBuffers = [];
 
                 for (let item of fileItems) {
-                    // 各ファイルの処理後サンプル数を計算 (倍速指定を反映)
                     const sampleRate = item.buffer.sampleRate;
                     const numChannels = item.buffer.numberOfChannels;
                     const trimDuration = item.endTime - item.startTime;
                     const outputDuration = trimDuration / item.speed;
                     const outputLength = Math.floor(outputDuration * sampleRate);
 
-                    // オフラインコンテキストを使ってフィルタ・音量・速度をレンダリング
                     const offlineCtx = new OfflineAudioContext(numChannels, outputLength, sampleRate);
                     
-                    // ソースバッファ生成
                     let srcBuffer = item.buffer;
 
-                    // 逆再生の処理
                     if (item.reverse) {
                         srcBuffer = offlineCtx.createBuffer(numChannels, item.buffer.length, sampleRate);
                         for (let ch = 0; ch < numChannels; ch++) {
@@ -458,11 +469,9 @@
                     source.buffer = srcBuffer;
                     source.playbackRate.value = item.speed;
 
-                    // 音量調整ノード
                     const gainNode = offlineCtx.createGain();
                     gainNode.gain.value = item.volume;
 
-                    // フィルター設定
                     let lastNode = source;
                     if (item.filter !== 'none') {
                         const filterNode = offlineCtx.createBiquadFilter();
@@ -484,7 +493,6 @@
                     lastNode.connect(gainNode);
                     gainNode.connect(offlineCtx.destination);
 
-                    // 逆再生時のトリミング位置補正
                     let actualStart = item.startTime;
                     if (item.reverse) {
                         actualStart = item.duration - item.endTime;
@@ -497,12 +505,11 @@
 
                 if (processedBuffers.length === 0) return;
 
-                // 全バッファの連結
                 const sampleRate = processedBuffers[0].sampleRate;
                 const numChannels = processedBuffers[0].numberOfChannels;
                 const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
 
-                const finalBuffer = audioContext.createBuffer(numChannels, totalSamples, sampleRate);
+                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
 
                 for (let channel = 0; channel < numChannels; channel++) {
                     const finalData = finalBuffer.getChannelData(channel);
@@ -514,7 +521,6 @@
                     }
                 }
 
-                // WAVファイルエンコード
                 const wavBlob = audioBufferToWav(finalBuffer);
                 const url = URL.createObjectURL(wavBlob);
 
@@ -532,7 +538,6 @@
             }
         });
 
-        // AudioBuffer -> WAV Blob 変換
         function audioBufferToWav(buffer) {
             const numChannels = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
