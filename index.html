@@ -166,6 +166,7 @@
             color: white;
         }
 
+        /* パラメータ編集パネル */
         .editor-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -224,12 +225,13 @@
 
     <div class="mode-selector">
         <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">音声を編集・結合</button>
-        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">動画から音声抽出</button>
+        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">動画 音声抽出</button>
     </div>
 
     <div class="card">
         <label class="file-input-wrapper">
             <span id="fileInputLabel">音声・動画ファイルを選択 (複数可)</span>
+            <!-- accept 属性に audio/* と video/* の両方を指定 -->
             <input type="file" id="audioFiles" accept="audio/*,video/*" multiple>
         </label>
         <ul id="fileList" class="file-list"></ul>
@@ -256,18 +258,8 @@
         const modeConvertBtn = document.getElementById('modeConvertBtn');
 
         let currentMode = 'edit';
-        let fileItems = []; 
-        let audioContext = null;
-
-        function getAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            return audioContext;
-        }
+        let fileItems = []; // 編集用メタデータを保持
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
         window.setMode = function(mode) {
             currentMode = mode;
@@ -285,8 +277,8 @@
             } else {
                 modeConvertBtn.classList.add('active');
                 modeEditBtn.classList.remove('active');
-                fileInputLabel.textContent = '動画を選択 (MP4, MOV等)';
-                audioFileInput.accept = 'video/*,video/mp4,video/quicktime,.mov,.mp4';
+                fileInputLabel.textContent = '動画・音声ファイルを選択';
+                audioFileInput.accept = 'video/*,audio/*';
                 audioFileInput.multiple = false;
                 processBtn.textContent = '音声(WAV)に変換';
             }
@@ -294,17 +286,13 @@
 
         audioFileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-
             processBtn.disabled = true;
             processBtn.textContent = '読み込み中...';
-
-            const ctx = getAudioContext();
 
             for (let file of files) {
                 try {
                     const arrayBuffer = await file.arrayBuffer();
-                    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     
                     fileItems.push({
                         file: file,
@@ -319,7 +307,7 @@
                     });
                 } catch (err) {
                     console.error('ファイル読み込みエラー:', file.name, err);
-                    alert(`「${file.name}」の読み込みに失敗しました。\n対応していないフォーマットか、ファイルが破損している可能性があります。`);
+                    alert(`「${file.name}」の読み込みに失敗しました。\n対応していない形式か、写真アルバムのアクセス制限の可能性があります。`);
                 }
             }
 
@@ -440,7 +428,6 @@
             processBtn.textContent = '処理中...';
 
             try {
-                const ctx = getAudioContext();
                 const processedBuffers = [];
 
                 for (let item of fileItems) {
@@ -509,7 +496,7 @@
                 const numChannels = processedBuffers[0].numberOfChannels;
                 const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
 
-                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
+                const finalBuffer = audioContext.createBuffer(numChannels, totalSamples, sampleRate);
 
                 for (let channel = 0; channel < numChannels; channel++) {
                     const finalData = finalBuffer.getChannelData(channel);
