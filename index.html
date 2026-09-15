@@ -3,221 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>動画サイズ指定圧縮ツール</title>
+    <title>スマホ動画エディター</title>
     <style>
+        :root {
+            --primary: #007aff;
+            --bg: #f2f2f7;
+            --card-bg: #ffffff;
+            --text: #1c1c1e;
+            --danger: #ff3b30;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f0f2f5;
-            color: #333;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-            padding: 20px;
+            padding: 16px;
+        }
+        h1 {
+            font-size: 1.4rem;
+            text-align: center;
+            margin-bottom: 16px;
         }
         .container {
             max-width: 600px;
             margin: 0 auto;
-            background: #fff;
-            padding: 20px;
+        }
+        .card {
+            background: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        h2 { text-align: center; color: #007aff; margin-top: 0; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
-        input[type="file"], input[type="number"] {
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
             width: 100%;
-            padding: 12px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 16px;
         }
-        button {
-            width: 100%;
-            background: #007aff;
-            color: #fff;
-            border: none;
-            padding: 14px;
-            font-size: 16px;
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            font-size: 1rem;
             font-weight: bold;
+            border: none;
             border-radius: 8px;
+            width: 100%;
+            text-align: center;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            max-height: 300px;
+            object-fit: contain;
+        }
+        .video-item {
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #fafafa;
+        }
+        .video-item h3 {
+            font-size: 1rem;
+            margin: 0 0 8px 0;
+            word-break: break-all;
+        }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .controls button {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            border: 1px solid #c7c7cc;
+            background: #fff;
             cursor: pointer;
         }
-        button:disabled { background: #b0c4de; }
-        #progressArea { margin-top: 20px; display: none; text-align: center; }
-        progress { width: 100%; height: 20px; border-radius: 10px; }
-        #errorText { color: #ff3b30; margin-top: 10px; font-weight: bold; display: none; text-align: left; background: #fff2f2; padding: 10px; border-radius: 6px; word-break: break-all;}
-        #resultArea { margin-top: 20px; display: none; text-align: center; }
-        video { width: 100%; border-radius: 8px; margin-top: 10px; background: #000; }
-        .download-btn {
-            display: inline-block;
-            background: #34c759;
-            color: #fff;
-            padding: 14px;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 8px;
-            margin-top: 15px;
-            width: 100%;
-            box-sizing: border-box;
+        .time-inputs {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 0.85rem;
+        }
+        .time-inputs input {
+            width: 60px;
+            padding: 4px;
+            text-align: center;
+            border: 1px solid #c7c7cc;
+            border-radius: 4px;
+        }
+        #preview-section {
+            text-align: center;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>動画サイズ圧縮ツール</h2>
-    
-    <div class="form-group">
-        <label for="videoFile">MP4動画を選択</label>
-        <input type="file" id="videoFile" accept="video/mp4,video/*">
+    <h1>スマホ動画エディター</h1>
+
+    <!-- 動画アップロードカード -->
+    <div class="card">
+        <div class="upload-btn-wrapper">
+            <button class="btn">＋ 動画を追加（複数選択可）</button>
+            <input type="file" id="file-input" accept="video/*" multiple>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label for="targetSize">目標サイズ (MB)</label>
-        <input type="number" id="targetSize" value="10" min="1" max="500">
+    <!-- プレビュー＆全体再生カード -->
+    <div class="card" id="preview-section">
+        <h3>全体プレビュー</h3>
+        <video id="main-player" controls></video>
+        <div style="margin-top: 12px;" class="action-buttons">
+            <button class="btn" onclick="playAll()">全動画を連続再生</button>
+        </div>
     </div>
 
-    <button id="startBtn" onclick="startCompression()">圧縮を開始する</button>
-
-    <div id="progressArea">
-        <p id="statusText">処理中...</p>
-        <progress id="progressBar" value="0" max="100"></progress>
-        <div id="errorText"></div>
-    </div>
-
-    <div id="resultArea">
-        <h3>圧縮完了！</h3>
-        <p id="resultInfo"></p>
-        <video id="resultVideo" controls></video>
-        <a id="downloadLink" class="download-btn">動画をダウンロード</a>
+    <!-- 編集・切り貼りリスト -->
+    <div class="card">
+        <h3>編集・並び替えリスト</h3>
+        <div id="playlist">
+            <p style="color: #8e8e93; font-size: 0.9rem; text-align: center;">動画が追加されていません</p>
+        </div>
     </div>
 </div>
 
-<!-- FFmpeg v0.12系の読み込み -->
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
-
 <script>
-    let ffmpeg = null;
+    let videoClips = [];
+    const fileInput = document.getElementById('file-input');
+    const playlistEl = document.getElementById('playlist');
+    const mainPlayer = document.getElementById('main-player');
 
-    async function loadFFmpeg() {
-        if (ffmpeg) return;
-        const statusText = document.getElementById('statusText');
-        const errorText = document.getElementById('errorText');
-        document.getElementById('progressArea').style.display = 'block';
-        statusText.innerText = 'エンジンを読み込み中...';
-        errorText.style.display = 'none';
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const url = URL.createObjectURL(file);
+            const clip = {
+                id: Date.now() + Math.random(),
+                file: file,
+                url: url,
+                name: file.name,
+                start: 0,
+                end: 0,
+                duration: 0
+            };
 
-        try {
-            if (typeof FFmpegWASM === 'undefined') {
-                throw new Error('FFmpegライブラリが読み込めませんでした。インターネット接続やCDNへのアクセスを確認してください。');
-            }
+            // 動画の長さを取得
+            const tempVideo = document.createElement('video');
+            tempVideo.src = url;
+            tempVideo.onloadedmetadata = () => {
+                clip.duration = tempVideo.duration;
+                clip.end = tempVideo.duration;
+                videoClips.push(clip);
+                renderPlaylist();
+            };
+        });
+        fileInput.value = ''; // リセット
+    });
 
-            const { FFmpeg } = FFmpegWASM;
-            ffmpeg = new FFmpeg();
-            
-            ffmpeg.on('log', ({ message }) => {
-                console.log(message);
-            });
-
-            // 安定版のcoreURLを指定 (cdnjs経由やunpkg経由を試す)
-            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-            
-            statusText.innerText = 'エンジンをダウンロード中 (数秒かかります)...';
-            
-            await ffmpeg.load({
-                coreURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                wasmURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-            });
-            
-            document.getElementById('progressArea').style.display = 'none';
-        } catch (err) {
-            statusText.innerText = 'エンジンの読み込みに失敗しました';
-            errorText.innerText = 'エラー詳細: ' + (err.message || err);
-            errorText.style.display = 'block';
-            ffmpeg = null; // リトライできるようにリセット
-            throw err;
-        }
-    }
-
-    async function startCompression() {
-        const fileInput = document.getElementById('videoFile');
-        const targetSizeMB = parseFloat(document.getElementById('targetSize').value);
-
-        if (fileInput.files.length === 0) {
-            alert('動画ファイルを選択してください。');
+    function renderPlaylist() {
+        if (videoClips.length === 0) {
+            playlistEl.innerHTML = '<p style="color: #8e8e93; font-size: 0.9rem; text-align: center;">動画が追加されていません</p>';
             return;
         }
 
-        const file = fileInput.files[0];
-        const startBtn = document.getElementById('startBtn');
-        const progressArea = document.getElementById('progressArea');
-        const resultArea = document.getElementById('resultArea');
-        const statusText = document.getElementById('statusText');
+        playlistEl.innerHTML = '';
+        videoClips.forEach((clip, index) => {
+            const div = document.createElement('div');
+            div.className = 'video-item';
+            div.innerHTML = `
+                <h3>${index + 1}. ${clip.name}</h3>
+                <video src="${clip.url}#t=${clip.start},${clip.end}" controls preload="metadata" style="max-height: 150px;"></video>
+                <div class="time-inputs">
+                    <span>トリミング:</span>
+                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.start}" onchange="updateTime(${index}, 'start', this.value)"> 秒 〜
+                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.end}" onchange="updateTime(${index}, 'end', this.value)"> 秒
+                </div>
+                <div class="controls">
+                    <button onclick="moveClip(${index}, -1)">▲ 上へ</button>
+                    <button onclick="moveClip(${index}, 1)">▼ 下へ</button>
+                    <button class="btn-danger" onclick="removeClip(${index})">削除</button>
+                </div>
+            `;
+            playlistEl.appendChild(div);
+        });
+    }
 
-        startBtn.disabled = true;
-        resultArea.style.display = 'none';
-        progressArea.style.display = 'block';
-
-        try {
-            await loadFFmpeg();
-
-            statusText.innerText = 'ファイルを読み込み中...';
-            const inputName = 'input.mp4';
-            const outputName = 'output.mp4';
-
-            await ffmpeg.writeFile(inputName, await FFmpegUtil.fetchFile(file));
-
-            const videoElement = document.createElement('video');
-            videoElement.src = URL.createObjectURL(file);
-            await new Promise((resolve) => {
-                videoElement.onloadedmetadata = () => resolve();
-            });
-            const duration = videoElement.duration;
-
-            if (!duration || isNaN(duration)) {
-                throw new Error('動画の長さを取得できませんでした。');
-            }
-
-            const targetBits = targetSizeMB * 1024 * 1024 * 8 * 0.9;
-            let targetBitrate = Math.floor(targetBits / duration);
-            if (targetBitrate < 100000) targetBitrate = 100000;
-
-            statusText.innerText = '高画質を維持したまま圧縮中...';
-
-            await ffmpeg.exec([
-                '-i', inputName,
-                '-c:v', 'libx264',
-                '-b:v', `${targetBitrate}`,
-                '-c:a', 'aac',
-                '-b:a', '128k',
-                '-y', outputName
-            ]);
-
-            statusText.innerText = '仕上げ中...';
-            const data = await ffmpeg.readFile(outputName);
-            const compressedBlob = new Blob([data.buffer], { type: 'video/mp4' });
-            const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
-
-            const resultVideo = document.getElementById('resultVideo');
-            const downloadLink = document.getElementById('downloadLink');
-            const blobUrl = URL.createObjectURL(compressedBlob);
-
-            resultVideo.src = blobUrl;
-            downloadLink.href = blobUrl;
-            downloadLink.download = `compressed_${file.name}`;
-
-            document.getElementById('resultInfo').innerText = 
-                `完了！ 圧縮後サイズ: ${compressedSizeMB} MB (目標: ${targetSizeMB} MB以下)`;
-
-            progressArea.style.display = 'none';
-            resultArea.style.display = 'block';
-
-        } catch (error) {
-            console.error(error);
-        } finally {
-            startBtn.disabled = false;
+    function updateTime(index, type, value) {
+        val = parseFloat(value);
+        if (type === 'start') {
+            if (val < videoClips[index].end) videoClips[index].start = val;
+        } else {
+            if (val > videoClips[index].start) videoClips[index].end = val;
         }
+    }
+
+    function moveClip(index, direction) {
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= videoClips.length) return;
+        const temp = videoClips[index];
+        videoClips[index] = videoClips[newIndex];
+        videoClips[newIndex] = temp;
+        renderPlaylist();
+    }
+
+    function removeClip(index) {
+        URL.revokeObjectURL(videoClips[index].url);
+        videoClips.splice(index, 1);
+        renderPlaylist();
+    }
+
+    let currentPlayIndex = 0;
+    function playAll() {
+        if (videoClips.length === 0) return;
+        currentPlayIndex = 0;
+        playClipSequence();
+    }
+
+    function playClipSequence() {
+        if (currentPlayIndex >= videoClips.length) {
+            mainPlayer.onended = null;
+            return;
+        }
+        const clip = videoClips[currentPlayIndex];
+        mainPlayer.src = clip.url;
+        mainPlayer.currentTime = clip.start;
+        mainPlayer.play();
+
+        mainPlayer.ontimeupdate = () => {
+            if (mainPlayer.currentTime >= clip.end) {
+                mainPlayer.pause();
+                mainPlayer.ontimeupdate = null;
+                currentPlayIndex++;
+                playClipSequence();
+            }
+        };
     }
 </script>
 
