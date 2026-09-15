@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スマホ動画エディター & 高精度書き出し</title>
+    <title>スマホ動画エディター（完全滑らか版）</title>
     <style>
         :root {
             --primary: #007aff;
@@ -20,15 +20,8 @@
             margin: 0;
             padding: 16px;
         }
-        h1 {
-            font-size: 1.4rem;
-            text-align: center;
-            margin-bottom: 16px;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
+        h1 { font-size: 1.4rem; text-align: center; margin-bottom: 16px; }
+        .container { max-width: 600px; margin: 0 auto; }
         .card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -36,12 +29,7 @@
             margin-bottom: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        .upload-btn-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
+        .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
         .btn {
             background-color: var(--primary);
             color: white;
@@ -60,75 +48,18 @@
         .btn-success { background-color: var(--success); }
         .btn-danger { background-color: var(--danger); }
         .upload-btn-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-            width: 100%;
-            height: 100%;
+            font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
         }
-        video {
-            width: 100%;
-            border-radius: 8px;
-            background: #000;
-            max-height: 250px;
-            object-fit: contain;
-        }
-        .video-item {
-            border: 1px solid #e5e5ea;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            background: #fafafa;
-        }
-        .video-item h3 {
-            font-size: 1rem;
-            margin: 0 0 8px 0;
-            word-break: break-all;
-        }
-        .controls {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .controls button {
-            flex: 1;
-            padding: 8px;
-            font-size: 0.9rem;
-            border-radius: 6px;
-            border: 1px solid #c7c7cc;
-            background: #fff;
-            cursor: pointer;
-        }
-        .time-inputs {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            margin-top: 8px;
-            font-size: 0.85rem;
-            flex-wrap: wrap;
-        }
-        .time-inputs input {
-            width: 60px;
-            padding: 4px;
-            text-align: center;
-            border: 1px solid #c7c7cc;
-            border-radius: 4px;
-        }
+        video, canvas { width: 100%; border-radius: 8px; background: #000; max-height: 250px; object-fit: contain; }
+        .video-item { border: 1px solid #e5e5ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+        .video-item h3 { font-size: 1rem; margin: 0 0 8px 0; word-break: break-all; }
+        .controls { display: flex; gap: 8px; margin-top: 8px; }
+        .controls button { flex: 1; padding: 8px; font-size: 0.9rem; border-radius: 6px; border: 1px solid #c7c7cc; background: #fff; cursor: pointer; }
+        .time-inputs { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 0.85rem; flex-wrap: wrap; }
+        .time-inputs input { width: 60px; padding: 4px; text-align: center; border: 1px solid #c7c7cc; border-radius: 4px; }
         #preview-section { text-align: center; }
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        #status-msg {
-            font-size: 0.9rem;
-            margin-top: 8px;
-            color: #007aff;
-            font-weight: bold;
-        }
+        .action-buttons { display: flex; flex-direction: column; gap: 10px; }
+        #status-msg { font-size: 0.9rem; margin-top: 8px; color: #007aff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -152,9 +83,10 @@
 
     <div class="card" id="preview-section">
         <h3>プレビュー ＆ 書き出し</h3>
-        <video id="main-player" controls playsinline></video>
+        <!-- プレビュー用のCanvas -->
+        <canvas id="preview-canvas" width="1280" height="720"></canvas>
         <div style="margin-top: 12px;" class="action-buttons">
-            <button class="btn" onclick="playAll()">連続再生プレビュー</button>
+            <button class="btn" id="preview-btn" onclick="togglePreview()">なめらか連続プレビュー再生</button>
             <button class="btn btn-success" id="export-btn" onclick="exportVideo()">結合動画を作成してダウンロード</button>
             <div id="status-msg"></div>
             <a id="download-link" style="display:none;" class="btn btn-success">結合された動画を保存する</a>
@@ -166,30 +98,34 @@
     let videoClips = [];
     const fileInput = document.getElementById('file-input');
     const playlistEl = document.getElementById('playlist');
-    const mainPlayer = document.getElementById('main-player');
+    const canvas = document.getElementById('preview-canvas');
+    const ctx = canvas.getContext('2d');
     const statusMsg = document.getElementById('status-msg');
     const downloadLink = document.getElementById('download-link');
     const exportBtn = document.getElementById('export-btn');
+    const previewBtn = document.getElementById('preview-btn');
+
+    let isPlaying = false;
+    let animationFrameId = null;
 
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         files.forEach(file => {
             const url = URL.createObjectURL(file);
-            const clip = {
-                id: Date.now() + Math.random(),
-                file: file,
-                url: url,
-                name: file.name,
-                start: 0,
-                end: 0,
-                duration: 0
-            };
-
             const tempVideo = document.createElement('video');
             tempVideo.src = url;
             tempVideo.onloadedmetadata = () => {
-                clip.duration = tempVideo.duration;
-                clip.end = tempVideo.duration;
+                const clip = {
+                    id: Date.now() + Math.random(),
+                    file: file,
+                    url: url,
+                    name: file.name,
+                    start: 0,
+                    end: tempVideo.duration,
+                    duration: tempVideo.duration,
+                    videoElement: tempVideo // 事前にビデオ要素を保持して読み込み遅延をゼロにする
+                };
+                tempVideo.load();
                 videoClips.push(clip);
                 renderPlaylist();
             };
@@ -209,7 +145,6 @@
             div.className = 'video-item';
             div.innerHTML = `
                 <h3>${index + 1}. ${clip.name}</h3>
-                <video src="${clip.url}" controls preload="metadata" style="max-height: 120px;"></video>
                 <div class="time-inputs">
                     <span>トリミング:</span>
                     <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.start.toFixed(1)}" onchange="updateTime(${index}, 'start', this.value)"> 秒 〜
@@ -250,71 +185,100 @@
         renderPlaylist();
     }
 
-    let currentPlayIndex = 0;
-    function playAll() {
+    // キャンバスに動画を描画する共通関数
+    function drawVideoToCanvas(vid) {
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (vid.videoWidth > 0 && vid.videoHeight > 0) {
+            const hRatio = canvas.width / vid.videoWidth;
+            const vRatio = canvas.height / vid.videoHeight;
+            const ratio = Math.min(hRatio, vRatio);
+            const centerShiftX = (canvas.width - vid.videoWidth * ratio) / 2;
+            const centerShiftY = (canvas.height - vid.videoHeight * ratio) / 2;
+            ctx.drawImage(vid, 0, 0, vid.videoWidth, vid.videoHeight, centerShiftX, centerShiftY, vid.videoWidth * ratio, vid.videoHeight * ratio);
+        }
+    }
+
+    // プレビュー再生
+    async function togglePreview() {
         if (videoClips.length === 0) {
             alert("動画が追加されていません");
             return;
         }
-        currentPlayIndex = 0;
-        playClipSequence();
-    }
-
-    function playClipSequence() {
-        if (currentPlayIndex >= videoClips.length) {
-            mainPlayer.onended = null;
-            mainPlayer.ontimeupdate = null;
+        if (isPlaying) {
+            stopPlayback();
             return;
         }
-        const clip = videoClips[currentPlayIndex];
-        mainPlayer.src = clip.url;
-        mainPlayer.currentTime = clip.start;
-        mainPlayer.play().catch(e => console.log(e));
 
-        mainPlayer.ontimeupdate = () => {
-            if (mainPlayer.currentTime >= clip.end) {
-                mainPlayer.pause();
-                mainPlayer.ontimeupdate = null;
-                currentPlayIndex++;
-                playClipSequence();
+        isPlaying = true;
+        previewBtn.textContent = "停止";
+        statusMsg.textContent = "プレビュー再生中...";
+
+        let currentClipIdx = 0;
+        let clip = videoClips[currentClipIdx];
+        let vid = clip.videoElement;
+
+        vid.currentTime = clip.start;
+        vid.muted = false; // プレビュー時は音声あり
+        await vid.play().catch(e => console.log(e));
+
+        function step() {
+            if (!isPlaying) return;
+
+            if (vid.currentTime >= clip.end || vid.ended) {
+                vid.pause();
+                currentClipIdx++;
+                if (currentClipIdx >= videoClips.length) {
+                    stopPlayback();
+                    statusMsg.textContent = "プレビュー再生終了";
+                    return;
+                }
+                clip = videoClips[currentClipIdx];
+                vid = clip.videoElement;
+                vid.currentTime = clip.start;
+                vid.muted = false;
+                vid.play().catch(e => console.log(e));
             }
-        };
+
+            drawVideoToCanvas(vid);
+            animationFrameId = requestAnimationFrame(step);
+        }
+        animationFrameId = requestAnimationFrame(step);
     }
 
-    // Canvas & Web Audio API を使った高精度かつ自然な結合・ダウンロード処理
+    function stopPlayback() {
+        isPlaying = false;
+        previewBtn.textContent = "なめらか連続プレビュー再生";
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        videoClips.forEach(c => c.videoElement.pause());
+    }
+
+    // 高速かつ確実に完了する書き出し・ダウンロード処理
     async function exportVideo() {
         if (videoClips.length === 0) {
             alert("動画が追加されていません");
             return;
         }
 
+        if (isPlaying) stopPlayback();
+
         exportBtn.disabled = true;
         downloadLink.style.display = 'none';
-        statusMsg.textContent = "書き出し処理を初期化中...";
+        statusMsg.textContent = "書き出し準備中...";
 
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 1280;  // 安定した解像度に統一
-            canvas.height = 720;
-            const ctx = canvas.getContext('2d');
-
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const dest = audioCtx.createMediaStreamDestination();
-
-            // キャンバスと音声ストリームを結合してレコーダーを作成
             const canvasStream = canvas.captureStream(30);
+            
             const combinedStream = new MediaStream([
                 ...canvasStream.getVideoTracks(),
                 ...dest.stream.getAudioTracks()
             ]);
 
             let mimeType = 'video/webm;codecs=vp9,opus';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'video/webm';
-            }
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = '';
-            }
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
 
             const recorder = mimeType ? new MediaRecorder(combinedStream, { mimeType }) : new MediaRecorder(combinedStream);
             let chunks = [];
@@ -327,7 +291,7 @@
                 const blob = new Blob(chunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
                 downloadLink.href = url;
-                downloadLink.download = "combined_video.webm";
+                downloadLink.download = "edited_video.webm";
                 downloadLink.style.display = "block";
                 statusMsg.textContent = "書き出しが完了しました！下のボタンから保存できます。";
                 exportBtn.disabled = false;
@@ -335,12 +299,11 @@
             };
 
             recorder.start();
-            statusMsg.textContent = "動画を合成・書き出し中...";
+            statusMsg.textContent = "動画を合成・書き出し中（再生が終わるまでそのままお待ちください）...";
 
-            // 各クリップを順番にCanvasとAudioContextに描画・流し込む（カクつきやプツッというノイズを防止）
+            // 順番にクリップを再生・録画
             for (let i = 0; i < videoClips.length; i++) {
-                const clip = videoClips[i];
-                await renderClipToCanvasAndAudio(clip, canvas, ctx, audioCtx, dest);
+                await playClipForExport(videoClips[i], audioCtx, dest);
             }
 
             setTimeout(() => {
@@ -349,63 +312,45 @@
 
         } catch (err) {
             console.error(err);
-            statusMsg.textContent = "エラーが発生しました。ブラウザを変えてお試しください。";
+            statusMsg.textContent = "書き出しエラーが発生しました。";
             exportBtn.disabled = false;
-            alert("書き出しに失敗しました: " + err.message);
+            alert("エラー: " + err.message);
         }
     }
 
-    function renderClipToCanvasAndAudio(clip, canvas, ctx, audioCtx, dest) {
+    function playClipForExport(clip, audioCtx, dest) {
         return new Promise((resolve) => {
-            const vid = document.createElement('video');
-            vid.src = clip.url;
-            vid.crossOrigin = "anonymous";
-            vid.muted = true; // 音声はWeb Audio API経由で正確に制御するため、video要素自体はミュート
+            const vid = clip.videoElement;
+            vid.currentTime = clip.start;
+            vid.muted = true; // 音声はWeb Audio経由で正確に送るためミュート
 
-            vid.onloadedmetadata = async () => {
-                vid.currentTime = clip.start;
-                
-                vid.onseeked = () => {
-                    // 音声ノードの接続
-                    const sourceNode = audioCtx.createMediaElementSource(vid);
-                    const gainNode = audioCtx.createGain();
-                    // 結合部分のノイズ（プツッ音）を防ぐためフェードを微小にかける
-                    gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-                    sourceNode.connect(gainNode);
-                    gainNode.connect(dest);
+            vid.onseeked = () => {
+                const sourceNode = audioCtx.createMediaElementSource(vid);
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                sourceNode.connect(gainNode);
+                gainNode.connect(dest);
 
-                    vid.play();
+                vid.play().catch(e => console.log(e));
 
-                    const duration = clip.end - clip.start;
-                    const startTime = performance.now();
+                const duration = clip.end - clip.start;
+                const startTime = performance.now();
 
-                    function drawFrame() {
-                        const elapsed = (performance.now() - startTime) / 1000;
-                        
-                        if (elapsed >= duration || vid.ended || vid.currentTime >= clip.end) {
-                            vid.pause();
-                            sourceNode.disconnect();
-                            gainNode.disconnect();
-                            resolve();
-                            return;
-                        }
+                function exportStep() {
+                    const elapsed = (performance.now() - startTime) / 1000;
 
-                        // アスペクト比を維持して綺麗に描画
-                        ctx.fillStyle = "#000000";
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        
-                        const hRatio = canvas.width / vid.videoWidth;
-                        const vRatio = canvas.height / vid.videoHeight;
-                        const ratio = Math.min(hRatio, vRatio);
-                        const centerShiftX = (canvas.width - vid.videoWidth * ratio) / 2;
-                        const centerShiftY = (canvas.height - vid.videoHeight * ratio) / 2;
-                        
-                        ctx.drawImage(vid, 0, 0, vid.videoWidth, vid.videoHeight, centerShiftX, centerShiftY, vid.videoWidth * ratio, vid.videoHeight * ratio);
-
-                        requestAnimationFrame(drawFrame);
+                    if (elapsed >= duration || vid.currentTime >= clip.end || vid.ended) {
+                        vid.pause();
+                        sourceNode.disconnect();
+                        gainNode.disconnect();
+                        resolve();
+                        return;
                     }
-                    drawFrame();
-                };
+
+                    drawVideoToCanvas(vid);
+                    requestAnimationFrame(exportStep);
+                }
+                requestAnimationFrame(exportStep);
             };
         });
     }
