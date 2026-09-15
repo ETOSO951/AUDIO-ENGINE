@@ -93,8 +93,9 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<!-- FFmpeg v0.12系の正しいCDN読み込み -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 
 <script>
     const { FFmpeg } = FFmpegWASM;
@@ -115,7 +116,8 @@
                 console.log(message);
             });
 
-            const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+            // 安定版のcoreURLを指定
+            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
             await ffmpeg.load({
                 coreURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
                 wasmURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -169,24 +171,19 @@
                 throw new Error('動画の長さを取得できませんでした。');
             }
 
-            // 音声ビットレート（128kbps）を引いた映像用の目標ビットレートを計算
-            const audioBitrate = 128000;
-            const totalBits = targetSizeMB * 1024 * 1024 * 8 * 0.95; // 余裕を持たせる
-            let videoBits = totalBits - (audioBitrate * duration);
-            if (videoBits < 100000) videoBits = 100000;
-            
-            let targetBitrate = Math.floor(videoBits / duration);
+            const targetBits = targetSizeMB * 1024 * 1024 * 8 * 0.9;
+            let targetBitrate = Math.floor(targetBits / duration);
+            if (targetBitrate < 100000) targetBitrate = 100000;
 
-            statusText.innerText = '動画を圧縮中（1パス）...';
+            statusText.innerText = '高画質を維持したまま圧縮中...';
 
-            // 安定して高速に動作する1パスエンコードに変更
+            // 2パスエンコードを1パス（標準の高速処理）に変更して確実性を向上
             await ffmpeg.exec([
                 '-i', inputName,
                 '-c:v', 'libx264',
                 '-b:v', `${targetBitrate}`,
-                '-preset', 'ultrafast', // ブラウザでの処理を軽くするため
                 '-c:a', 'aac',
-                '-b:a', `${audioBitrate}`,
+                '-b:a', '128k',
                 '-y', outputName
             ]);
 
