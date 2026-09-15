@@ -45,7 +45,7 @@
         button:disabled { background: #b0c4de; }
         #progressArea { margin-top: 20px; display: none; text-align: center; }
         progress { width: 100%; height: 20px; border-radius: 10px; }
-        #errorText { color: #ff3b30; margin-top: 10px; font-weight: bold; display: none; }
+        #errorText { color: #ff3b30; margin-top: 10px; font-weight: bold; display: none; text-align: left; background: #fff2f2; padding: 10px; border-radius: 6px; word-break: break-all;}
         #resultArea { margin-top: 20px; display: none; text-align: center; }
         video { width: 100%; border-radius: 8px; margin-top: 10px; background: #000; }
         .download-btn {
@@ -82,7 +82,7 @@
     <div id="progressArea">
         <p id="statusText">処理中...</p>
         <progress id="progressBar" value="0" max="100"></progress>
-        <p id="errorText"></p>
+        <div id="errorText"></div>
     </div>
 
     <div id="resultArea">
@@ -93,12 +93,11 @@
     </div>
 </div>
 
-<!-- FFmpeg v0.12系の正しいCDN読み込み -->
+<!-- FFmpeg v0.12系の読み込み -->
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
 <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 
 <script>
-    const { FFmpeg } = FFmpegWASM;
     let ffmpeg = null;
 
     async function loadFFmpeg() {
@@ -110,14 +109,22 @@
         errorText.style.display = 'none';
 
         try {
+            if (typeof FFmpegWASM === 'undefined') {
+                throw new Error('FFmpegライブラリが読み込めませんでした。インターネット接続やCDNへのアクセスを確認してください。');
+            }
+
+            const { FFmpeg } = FFmpegWASM;
             ffmpeg = new FFmpeg();
             
             ffmpeg.on('log', ({ message }) => {
                 console.log(message);
             });
 
-            // 安定版のcoreURLを指定
+            // 安定版のcoreURLを指定 (cdnjs経由やunpkg経由を試す)
             const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+            
+            statusText.innerText = 'エンジンをダウンロード中 (数秒かかります)...';
+            
             await ffmpeg.load({
                 coreURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
                 wasmURL: await FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -126,8 +133,9 @@
             document.getElementById('progressArea').style.display = 'none';
         } catch (err) {
             statusText.innerText = 'エンジンの読み込みに失敗しました';
-            errorText.innerText = err.message || err;
+            errorText.innerText = 'エラー詳細: ' + (err.message || err);
             errorText.style.display = 'block';
+            ffmpeg = null; // リトライできるようにリセット
             throw err;
         }
     }
@@ -177,7 +185,6 @@
 
             statusText.innerText = '高画質を維持したまま圧縮中...';
 
-            // 2パスエンコードを1パス（標準の高速処理）に変更して確実性を向上
             await ffmpeg.exec([
                 '-i', inputName,
                 '-c:v', 'libx264',
@@ -208,10 +215,6 @@
 
         } catch (error) {
             console.error(error);
-            if (!document.getElementById('errorText').style.display || document.getElementById('errorText').style.display === 'none') {
-                alert('エラーが発生しました: ' + error.message);
-                progressArea.style.display = 'none';
-            }
         } finally {
             startBtn.disabled = false;
         }
