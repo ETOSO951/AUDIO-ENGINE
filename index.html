@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スマホ動画エディター</title>
+    <title>スマホ動画エディター & ダウンローダー</title>
     <style>
         :root {
             --primary: #007aff;
@@ -11,6 +11,7 @@
             --card-bg: #ffffff;
             --text: #1c1c1e;
             --danger: #ff3b30;
+            --success: #34c759;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -53,6 +54,11 @@
             text-align: center;
             cursor: pointer;
             box-sizing: border-box;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .btn-success {
+            background-color: var(--success);
         }
         .btn-danger {
             background-color: var(--danger);
@@ -71,7 +77,7 @@
             width: 100%;
             border-radius: 8px;
             background: #000;
-            max-height: 300px;
+            max-height: 250px;
             object-fit: contain;
         }
         .video-item {
@@ -102,10 +108,11 @@
         }
         .time-inputs {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             margin-top: 8px;
             font-size: 0.85rem;
+            flex-wrap: wrap;
         }
         .time-inputs input {
             width: 60px;
@@ -119,29 +126,27 @@
         }
         .action-buttons {
             display: flex;
+            flex-direction: column;
             gap: 10px;
+        }
+        #status-msg {
+            font-size: 0.9rem;
+            margin-top: 8px;
+            color: #007aff;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>スマホ動画エディター</h1>
+    <h1>スマホ動画エディター ＆ 出力</h1>
 
     <!-- 動画アップロードカード -->
     <div class="card">
         <div class="upload-btn-wrapper">
             <button class="btn">＋ 動画を追加（複数選択可）</button>
             <input type="file" id="file-input" accept="video/*" multiple>
-        </div>
-    </div>
-
-    <!-- プレビュー＆全体再生カード -->
-    <div class="card" id="preview-section">
-        <h3>全体プレビュー</h3>
-        <video id="main-player" controls></video>
-        <div style="margin-top: 12px;" class="action-buttons">
-            <button class="btn" onclick="playAll()">全動画を連続再生</button>
         </div>
     </div>
 
@@ -152,6 +157,18 @@
             <p style="color: #8e8e93; font-size: 0.9rem; text-align: center;">動画が追加されていません</p>
         </div>
     </div>
+
+    <!-- プレビュー＆ダウンロードカード -->
+    <div class="card" id="preview-section">
+        <h3>プレビュー ＆ 書き出し</h3>
+        <video id="main-player" controls playsinline></video>
+        <div style="margin-top: 12px;" class="action-buttons">
+            <button class="btn" onclick="playAll()">全動画を連続再生プレビュー</button>
+            <button class="btn btn-success" id="export-btn" onclick="exportVideo()">結合動画を作成してダウンロード</button>
+            <div id="status-msg"></div>
+            <a id="download-link" style="display:none;" class="btn btn-success">作成された動画を保存する</a>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -159,6 +176,9 @@
     const fileInput = document.getElementById('file-input');
     const playlistEl = document.getElementById('playlist');
     const mainPlayer = document.getElementById('main-player');
+    const statusMsg = document.getElementById('status-msg');
+    const downloadLink = document.getElementById('download-link');
+    const exportBtn = document.getElementById('export-btn');
 
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
@@ -174,7 +194,6 @@
                 duration: 0
             };
 
-            // 動画の長さを取得
             const tempVideo = document.createElement('video');
             tempVideo.src = url;
             tempVideo.onloadedmetadata = () => {
@@ -184,7 +203,7 @@
                 renderPlaylist();
             };
         });
-        fileInput.value = ''; // リセット
+        fileInput.value = '';
     });
 
     function renderPlaylist() {
@@ -199,11 +218,11 @@
             div.className = 'video-item';
             div.innerHTML = `
                 <h3>${index + 1}. ${clip.name}</h3>
-                <video src="${clip.url}#t=${clip.start},${clip.end}" controls preload="metadata" style="max-height: 150px;"></video>
+                <video src="${clip.url}" controls preload="metadata" style="max-height: 120px;"></video>
                 <div class="time-inputs">
                     <span>トリミング:</span>
-                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.start}" onchange="updateTime(${index}, 'start', this.value)"> 秒 〜
-                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.end}" onchange="updateTime(${index}, 'end', this.value)"> 秒
+                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.start.toFixed(1)}" onchange="updateTime(${index}, 'start', this.value)"> 秒 〜
+                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.end.toFixed(1)}" onchange="updateTime(${index}, 'end', this.value)"> 秒
                 </div>
                 <div class="controls">
                     <button onclick="moveClip(${index}, -1)">▲ 上へ</button>
@@ -216,11 +235,12 @@
     }
 
     function updateTime(index, type, value) {
-        val = parseFloat(value);
+        let val = parseFloat(value);
+        if (isNaN(val)) return;
         if (type === 'start') {
-            if (val < videoClips[index].end) videoClips[index].start = val;
+            if (val < videoClips[index].end && val >= 0) videoClips[index].start = val;
         } else {
-            if (val > videoClips[index].start) videoClips[index].end = val;
+            if (val > videoClips[index].start && val <= videoClips[index].duration) videoClips[index].end = val;
         }
     }
 
@@ -241,29 +261,108 @@
 
     let currentPlayIndex = 0;
     function playAll() {
-        if (videoClips.length === 0) return;
+        if (videoClips.length === 0) {
+            alert("動画が追加されていません");
+            return;
+        }
         currentPlayIndex = 0;
-        playClipSequence();
+        playClipSequence(false);
     }
 
-    function playClipSequence() {
+    function playClipSequence(isExporting, onClipEnded) {
         if (currentPlayIndex >= videoClips.length) {
             mainPlayer.onended = null;
+            mainPlayer.ontimeupdate = null;
+            if (onClipEnded) onClipEnded(true);
             return;
         }
         const clip = videoClips[currentPlayIndex];
         mainPlayer.src = clip.url;
         mainPlayer.currentTime = clip.start;
-        mainPlayer.play();
+        
+        mainPlayer.onloadedmetadata = () => {
+            mainPlayer.play().catch(e => console.log(e));
+        };
 
         mainPlayer.ontimeupdate = () => {
             if (mainPlayer.currentTime >= clip.end) {
                 mainPlayer.pause();
                 mainPlayer.ontimeupdate = null;
                 currentPlayIndex++;
-                playClipSequence();
+                playClipSequence(isExporting, onClipEnded);
             }
         };
+    }
+
+    // 書き出し機能（MediaRecorderによるリアルタイム結合録画）
+    async function exportVideo() {
+        if (videoClips.length === 0) {
+            alert("動画が追加されていません");
+            return;
+        }
+
+        if (typeof mainPlayer.captureStream !== 'function' && typeof mainPlayer.mozCaptureStream !== 'function') {
+            alert("お使いのブラウザは動画の書き出し録画（captureStream）に対応していません。Google Chromeや最新のSafari等でお試しください。");
+            return;
+        }
+
+        exportBtn.disabled = true;
+        downloadLink.style.display = 'none';
+        statusMsg.textContent = "書き出し準備中...";
+
+        currentPlayIndex = 0;
+        
+        const firstClip = videoClips[0];
+        mainPlayer.src = firstClip.url;
+        mainPlayer.currentTime = firstClip.start;
+
+        await new Promise(resolve => {
+            mainPlayer.onloadeddata = () => resolve();
+        });
+
+        const stream = mainPlayer.captureStream ? mainPlayer.captureStream() : mainPlayer.mozCaptureStream();
+        
+        let recorder;
+        try {
+            let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm' };
+            }
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = {};
+            }
+            recorder = new MediaRecorder(stream, options);
+        } catch (err) {
+            recorder = new MediaRecorder(stream);
+        }
+
+        let chunks = [];
+        recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                chunks.push(e.data);
+            }
+        };
+
+        recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            downloadLink.href = url;
+            downloadLink.download = "edited_video.webm";
+            downloadLink.style.display = "block";
+            statusMsg.textContent = "書き出しが完了しました！下のボタンから保存できます。";
+            exportBtn.disabled = false;
+        };
+
+        statusMsg.textContent = "書き出し録画中... 再生が終わるまでお待ちください";
+        recorder.start();
+
+        playClipSequence(true, (finished) => {
+            if (finished) {
+                setTimeout(() => {
+                    recorder.stop();
+                }, 300);
+            }
+        });
     }
 </script>
 
