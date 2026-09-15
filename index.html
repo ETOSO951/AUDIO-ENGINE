@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スマホ動画エディター（完全滑らか版）</title>
+    <title>スマホ動画エディター</title>
     <style>
         :root {
             --primary: #007aff;
@@ -50,7 +50,7 @@
         .upload-btn-wrapper input[type=file] {
             font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
         }
-        video, canvas { width: 100%; border-radius: 8px; background: #000; max-height: 250px; object-fit: contain; }
+        canvas { width: 100%; border-radius: 8px; background: #000; max-height: 250px; object-fit: contain; }
         .video-item { border: 1px solid #e5e5ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
         .video-item h3 { font-size: 1rem; margin: 0 0 8px 0; word-break: break-all; }
         .controls { display: flex; gap: 8px; margin-top: 8px; }
@@ -83,10 +83,9 @@
 
     <div class="card" id="preview-section">
         <h3>プレビュー ＆ 書き出し</h3>
-        <!-- プレビュー用のCanvas -->
         <canvas id="preview-canvas" width="1280" height="720"></canvas>
         <div style="margin-top: 12px;" class="action-buttons">
-            <button class="btn" id="preview-btn" onclick="togglePreview()">なめらか連続プレビュー再生</button>
+            <button class="btn" id="preview-btn" onclick="togglePreview()">連続プレビュー再生</button>
             <button class="btn btn-success" id="export-btn" onclick="exportVideo()">結合動画を作成してダウンロード</button>
             <div id="status-msg"></div>
             <a id="download-link" style="display:none;" class="btn btn-success">結合された動画を保存する</a>
@@ -110,10 +109,14 @@
 
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
         files.forEach(file => {
             const url = URL.createObjectURL(file);
             const tempVideo = document.createElement('video');
             tempVideo.src = url;
+            tempVideo.preload = 'auto';
+            
             tempVideo.onloadedmetadata = () => {
                 const clip = {
                     id: Date.now() + Math.random(),
@@ -123,13 +126,14 @@
                     start: 0,
                     end: tempVideo.duration,
                     duration: tempVideo.duration,
-                    videoElement: tempVideo // 事前にビデオ要素を保持して読み込み遅延をゼロにする
+                    videoElement: tempVideo
                 };
-                tempVideo.load();
                 videoClips.push(clip);
                 renderPlaylist();
             };
         });
+
+        // 選択情報を即座にリセットして重複アップロードを防止
         fileInput.value = '';
     });
 
@@ -185,7 +189,6 @@
         renderPlaylist();
     }
 
-    // キャンバスに動画を描画する共通関数
     function drawVideoToCanvas(vid) {
         ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -199,7 +202,6 @@
         }
     }
 
-    // プレビュー再生
     async function togglePreview() {
         if (videoClips.length === 0) {
             alert("動画が追加されていません");
@@ -219,7 +221,7 @@
         let vid = clip.videoElement;
 
         vid.currentTime = clip.start;
-        vid.muted = false; // プレビュー時は音声あり
+        vid.muted = false;
         await vid.play().catch(e => console.log(e));
 
         function step() {
@@ -248,12 +250,11 @@
 
     function stopPlayback() {
         isPlaying = false;
-        previewBtn.textContent = "なめらか連続プレビュー再生";
+        previewBtn.textContent = "連続プレビュー再生";
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         videoClips.forEach(c => c.videoElement.pause());
     }
 
-    // 高速かつ確実に完了する書き出し・ダウンロード処理
     async function exportVideo() {
         if (videoClips.length === 0) {
             alert("動画が追加されていません");
@@ -301,7 +302,6 @@
             recorder.start();
             statusMsg.textContent = "動画を合成・書き出し中（再生が終わるまでそのままお待ちください）...";
 
-            // 順番にクリップを再生・録画
             for (let i = 0; i < videoClips.length; i++) {
                 await playClipForExport(videoClips[i], audioCtx, dest);
             }
@@ -322,7 +322,7 @@
         return new Promise((resolve) => {
             const vid = clip.videoElement;
             vid.currentTime = clip.start;
-            vid.muted = true; // 音声はWeb Audio経由で正確に送るためミュート
+            vid.muted = true;
 
             vid.onseeked = () => {
                 const sourceNode = audioCtx.createMediaElementSource(vid);
