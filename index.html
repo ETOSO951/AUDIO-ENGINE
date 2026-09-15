@@ -169,29 +169,24 @@
                 throw new Error('動画の長さを取得できませんでした。');
             }
 
-            const targetBits = targetSizeMB * 1024 * 1024 * 8 * 0.9;
-            let targetBitrate = Math.floor(targetBits / duration);
-            if (targetBitrate < 100000) targetBitrate = 100000;
+            // 音声ビットレート（128kbps）を引いた映像用の目標ビットレートを計算
+            const audioBitrate = 128000;
+            const totalBits = targetSizeMB * 1024 * 1024 * 8 * 0.95; // 余裕を持たせる
+            let videoBits = totalBits - (audioBitrate * duration);
+            if (videoBits < 100000) videoBits = 100000;
+            
+            let targetBitrate = Math.floor(videoBits / duration);
 
-            statusText.innerText = '高画質を維持したまま圧縮中...';
+            statusText.innerText = '動画を圧縮中（1パス）...';
 
+            // 安定して高速に動作する1パスエンコードに変更
             await ffmpeg.exec([
                 '-i', inputName,
                 '-c:v', 'libx264',
                 '-b:v', `${targetBitrate}`,
-                '-pass', '1',
-                '-an',
-                '-f', 'null',
-                '-y', 'nul'
-            ]);
-
-            await ffmpeg.exec([
-                '-i', inputName,
-                '-c:v', 'libx264',
-                '-b:v', `${targetBitrate}`,
-                '-pass', '2',
+                '-preset', 'ultrafast', // ブラウザでの処理を軽くするため
                 '-c:a', 'aac',
-                '-b:a', '128k',
+                '-b:a', `${audioBitrate}`,
                 '-y', outputName
             ]);
 
