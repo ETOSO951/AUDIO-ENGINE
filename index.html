@@ -2,359 +2,173 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スマホ動画エディター</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PocketDev - Final Edition</title>
     <style>
-        :root {
-            --primary: #007aff;
-            --bg: #f2f2f7;
-            --card-bg: #ffffff;
-            --text: #1c1c1e;
-            --danger: #ff3b30;
-            --success: #34c759;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 16px;
-        }
-        h1 { font-size: 1.4rem; text-align: center; margin-bottom: 16px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-        .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .btn {
-            background-color: var(--primary);
-            color: white;
-            padding: 12px 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            width: 100%;
-            text-align: center;
-            cursor: pointer;
-            box-sizing: border-box;
-            display: inline-block;
-            text-decoration: none;
-        }
-        .btn-success { background-color: var(--success); }
-        .btn-danger { background-color: var(--danger); }
-        .upload-btn-wrapper input[type=file] {
-            font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-        }
-        canvas { width: 100%; border-radius: 8px; background: #000; max-height: 250px; object-fit: contain; }
-        .video-item { border: 1px solid #e5e5ea; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
-        .video-item h3 { font-size: 1rem; margin: 0 0 8px 0; word-break: break-all; }
-        .controls { display: flex; gap: 8px; margin-top: 8px; }
-        .controls button { flex: 1; padding: 8px; font-size: 0.9rem; border-radius: 6px; border: 1px solid #c7c7cc; background: #fff; cursor: pointer; }
-        .time-inputs { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 0.85rem; flex-wrap: wrap; }
-        .time-inputs input { width: 60px; padding: 4px; text-align: center; border: 1px solid #c7c7cc; border-radius: 4px; }
-        #preview-section { text-align: center; }
-        .action-buttons { display: flex; flex-direction: column; gap: 10px; }
-        #status-msg { font-size: 0.9rem; margin-top: 8px; color: #007aff; font-weight: bold; }
+        :root { --accent: #007acc; --bg: #1e1e1e; --panel: #252526; }
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: white; display: flex; flex-direction: column; }
+        .toolbar { flex-shrink: 0; padding: 8px; background: #333; display: flex; flex-direction: column; gap: 4px; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .toolbar-row { display: flex; gap: 4px; width: 100%; }
+        input, button { padding: 6px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #444; color: white; flex: 1 1 auto; }
+        button { background: var(--accent); border: none; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        button:hover { opacity: 0.9; }
+        .btn-run { background: #28a745; min-width: 90px; }
+        .btn-clip { background: #555; }
+        #editor-container { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        #editor { flex: 1; width: 100%; border: none; padding: 10px; background: var(--panel); color: #d4d4d4; font-family: monospace; font-size: 14px; resize: none; box-sizing: border-box; outline: none; overflow-y: auto; }
+        .footer-info { font-size: 10px; color: #888; padding: 4px 10px; background: #1a1a1a; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>スマホ動画エディター</h1>
-
-    <div class="card">
-        <div class="upload-btn-wrapper">
-            <button class="btn">＋ 動画を追加（複数選択可）</button>
-            <input type="file" id="file-input" accept="video/*" multiple>
+    <div class="toolbar">
+        <div class="toolbar-row">
+            <input type="text" id="findInput" placeholder="検索ワード">
+            <button onclick="findNextText()">🔍 次へ</button>
+            <button class="btn-clip" onclick="copyToClipboard()">コピー</button>
+            <button class="btn-clip" onclick="pasteFromClipboard()">貼り付け</button>
+        </div>
+        <div class="toolbar-row">
+            <input type="text" id="replaceInput" placeholder="置換後のワード">
+            <button onclick="replaceText()">置換</button>
+            <button onclick="replaceAllText()">すべて置換</button>
+            <button class="btn-run" onclick="runCode()">▶ 実行</button>
         </div>
     </div>
 
-    <div class="card">
-        <h3>編集・並び替えリスト</h3>
-        <div id="playlist">
-            <p style="color: #8e8e93; font-size: 0.9rem; text-align: center;">動画が追加されていません</p>
-        </div>
+    <div id="editor-container">
+        <textarea id="editor" spellcheck="false" placeholder="ここにHTMLを貼り付けてください..."></textarea>
     </div>
 
-    <div class="card" id="preview-section">
-        <h3>プレビュー ＆ 書き出し</h3>
-        <canvas id="preview-canvas" width="1280" height="720"></canvas>
-        <div style="margin-top: 12px;" class="action-buttons">
-            <button class="btn" id="preview-btn" onclick="togglePreview()">連続プレビュー再生</button>
-            <button class="btn btn-success" id="export-btn" onclick="exportVideo()">結合動画を作成してダウンロード</button>
-            <div id="status-msg"></div>
-            <a id="download-link" style="display:none;" class="btn btn-success">結合された動画を保存する</a>
-        </div>
+    <div class="footer-info">
+        ※ 実行時に「ポップアップの許可」を求められた場合は許可してください。
     </div>
-</div>
 
-<script>
-    let videoClips = [];
-    const fileInput = document.getElementById('file-input');
-    const playlistEl = document.getElementById('playlist');
-    const canvas = document.getElementById('preview-canvas');
-    const ctx = canvas.getContext('2d');
-    const statusMsg = document.getElementById('status-msg');
-    const downloadLink = document.getElementById('download-link');
-    const exportBtn = document.getElementById('export-btn');
-    const previewBtn = document.getElementById('preview-btn');
+    <script>
+        const editor = document.getElementById('editor');
+        let lastSearchTerm = "";
+        let currentSearchIndex = -1;
 
-    let isPlaying = false;
-    let animationFrameId = null;
+        async function copyToClipboard() {
+            try {
+                await navigator.clipboard.writeText(editor.value);
+                alert("コピーしました");
+            } catch (err) { alert("失敗: " + err); }
+        }
 
-    fileInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files);
-        if (files.length === 0) return;
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (confirm("内容を置き換えますか？")) { editor.value = text; }
+            } catch (err) { alert("貼り付け失敗: " + err); }
+        }
 
-        files.forEach(file => {
-            const url = URL.createObjectURL(file);
-            const tempVideo = document.createElement('video');
-            tempVideo.src = url;
-            tempVideo.preload = 'auto';
+        function runCode() {
+            let userCode = editor.value;
+            if (!userCode.trim()) { alert("コードを入力してください"); return; }
+
+            userCode = userCode.replace(/document\.addEventListener\(\s*["']DOMContentLoaded["']\s*,/g, '(function(');
+
+            const fullHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Preview</title>
+</head>
+<body>
+    ${userCode}
+</body>
+</html>`;
+
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
             
-            tempVideo.onloadedmetadata = () => {
-                const clip = {
-                    id: Date.now() + Math.random(),
-                    file: file,
-                    url: url,
-                    name: file.name,
-                    start: 0,
-                    end: tempVideo.duration,
-                    duration: tempVideo.duration,
-                    videoElement: tempVideo
-                };
-                videoClips.push(clip);
-                renderPlaylist();
-            };
-        });
-
-        // 選択情報を即座にリセットして重複アップロードを防止
-        fileInput.value = '';
-    });
-
-    function renderPlaylist() {
-        if (videoClips.length === 0) {
-            playlistEl.innerHTML = '<p style="color: #8e8e93; font-size: 0.9rem; text-align: center;">動画が追加されていません</p>';
-            return;
+            const newWin = window.open(blobUrl, '_blank');
+            if (!newWin) {
+                alert("ポップアップがブロックされました。");
+            }
         }
 
-        playlistEl.innerHTML = '';
-        videoClips.forEach((clip, index) => {
-            const div = document.createElement('div');
-            div.className = 'video-item';
-            div.innerHTML = `
-                <h3>${index + 1}. ${clip.name}</h3>
-                <div class="time-inputs">
-                    <span>トリミング:</span>
-                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.start.toFixed(1)}" onchange="updateTime(${index}, 'start', this.value)"> 秒 〜
-                    <input type="number" step="0.1" min="0" max="${clip.duration}" value="${clip.end.toFixed(1)}" onchange="updateTime(${index}, 'end', this.value)"> 秒
-                </div>
-                <div class="controls">
-                    <button onclick="moveClip(${index}, -1)">▲ 上へ</button>
-                    <button onclick="moveClip(${index}, 1)">▼ 下へ</button>
-                    <button class="btn-danger" onclick="removeClip(${index})">削除</button>
-                </div>
-            `;
-            playlistEl.appendChild(div);
-        });
-    }
+        // 次を検索してジャンプする機能
+        function findNextText() {
+            const txt = document.getElementById('findInput').value;
+            if (!txt) return;
 
-    function updateTime(index, type, value) {
-        let val = parseFloat(value);
-        if (isNaN(val)) return;
-        if (type === 'start') {
-            if (val < videoClips[index].end && val >= 0) videoClips[index].start = val;
-        } else {
-            if (val > videoClips[index].start && val <= videoClips[index].duration) videoClips[index].end = val;
-        }
-    }
-
-    function moveClip(index, direction) {
-        const newIndex = index + direction;
-        if (newIndex < 0 || newIndex >= videoClips.length) return;
-        const temp = videoClips[index];
-        videoClips[index] = videoClips[newIndex];
-        videoClips[newIndex] = temp;
-        renderPlaylist();
-    }
-
-    function removeClip(index) {
-        URL.revokeObjectURL(videoClips[index].url);
-        videoClips.splice(index, 1);
-        renderPlaylist();
-    }
-
-    function drawVideoToCanvas(vid) {
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (vid.videoWidth > 0 && vid.videoHeight > 0) {
-            const hRatio = canvas.width / vid.videoWidth;
-            const vRatio = canvas.height / vid.videoHeight;
-            const ratio = Math.min(hRatio, vRatio);
-            const centerShiftX = (canvas.width - vid.videoWidth * ratio) / 2;
-            const centerShiftY = (canvas.height - vid.videoHeight * ratio) / 2;
-            ctx.drawImage(vid, 0, 0, vid.videoWidth, vid.videoHeight, centerShiftX, centerShiftY, vid.videoWidth * ratio, vid.videoHeight * ratio);
-        }
-    }
-
-    async function togglePreview() {
-        if (videoClips.length === 0) {
-            alert("動画が追加されていません");
-            return;
-        }
-        if (isPlaying) {
-            stopPlayback();
-            return;
-        }
-
-        isPlaying = true;
-        previewBtn.textContent = "停止";
-        statusMsg.textContent = "プレビュー再生中...";
-
-        let currentClipIdx = 0;
-        let clip = videoClips[currentClipIdx];
-        let vid = clip.videoElement;
-
-        vid.currentTime = clip.start;
-        vid.muted = false;
-        await vid.play().catch(e => console.log(e));
-
-        function step() {
-            if (!isPlaying) return;
-
-            if (vid.currentTime >= clip.end || vid.ended) {
-                vid.pause();
-                currentClipIdx++;
-                if (currentClipIdx >= videoClips.length) {
-                    stopPlayback();
-                    statusMsg.textContent = "プレビュー再生終了";
-                    return;
-                }
-                clip = videoClips[currentClipIdx];
-                vid = clip.videoElement;
-                vid.currentTime = clip.start;
-                vid.muted = false;
-                vid.play().catch(e => console.log(e));
+            // 検索ワードが変わった場合、または前回の検索からエディタのカーソル位置が大きく変わった場合は検索位置をリセット
+            if (lastSearchTerm !== txt) {
+                lastSearchTerm = txt;
+                currentSearchIndex = editor.selectionStart;
             }
 
-            drawVideoToCanvas(vid);
-            animationFrameId = requestAnimationFrame(step);
-        }
-        animationFrameId = requestAnimationFrame(step);
-    }
+            let idx = editor.value.indexOf(txt, currentSearchIndex);
 
-    function stopPlayback() {
-        isPlaying = false;
-        previewBtn.textContent = "連続プレビュー再生";
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        videoClips.forEach(c => c.videoElement.pause());
-    }
-
-    async function exportVideo() {
-        if (videoClips.length === 0) {
-            alert("動画が追加されていません");
-            return;
-        }
-
-        if (isPlaying) stopPlayback();
-
-        exportBtn.disabled = true;
-        downloadLink.style.display = 'none';
-        statusMsg.textContent = "書き出し準備中...";
-
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const dest = audioCtx.createMediaStreamDestination();
-            const canvasStream = canvas.captureStream(30);
-            
-            const combinedStream = new MediaStream([
-                ...canvasStream.getVideoTracks(),
-                ...dest.stream.getAudioTracks()
-            ]);
-
-            let mimeType = 'video/webm;codecs=vp9,opus';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
-
-            const recorder = mimeType ? new MediaRecorder(combinedStream, { mimeType }) : new MediaRecorder(combinedStream);
-            let chunks = [];
-
-            recorder.ondataavailable = e => {
-                if (e.data && e.data.size > 0) chunks.push(e.data);
-            };
-
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                downloadLink.href = url;
-                downloadLink.download = "edited_video.webm";
-                downloadLink.style.display = "block";
-                statusMsg.textContent = "書き出しが完了しました！下のボタンから保存できます。";
-                exportBtn.disabled = false;
-                audioCtx.close();
-            };
-
-            recorder.start();
-            statusMsg.textContent = "動画を合成・書き出し中（再生が終わるまでそのままお待ちください）...";
-
-            for (let i = 0; i < videoClips.length; i++) {
-                await playClipForExport(videoClips[i], audioCtx, dest);
+            // 見つからなかったら先頭からもう一度探す（ループ検索）
+            if (idx === -1) {
+                idx = editor.value.indexOf(txt, 0);
             }
 
-            setTimeout(() => {
-                recorder.stop();
-            }, 500);
+            if (idx !== -1) {
+                editor.focus();
+                editor.setSelectionRange(idx, idx + txt.length);
+                
+                // スクロール位置の調整
+                const lines = editor.value.substr(0, idx).split("\n").length;
+                editor.scrollTop = (lines - 1) * 18;
 
-        } catch (err) {
-            console.error(err);
-            statusMsg.textContent = "書き出しエラーが発生しました。";
-            exportBtn.disabled = false;
-            alert("エラー: " + err.message);
+                // 次回のために検索開始位置を更新
+                currentSearchIndex = idx + txt.length;
+            } else {
+                alert("見つかりませんでした");
+                currentSearchIndex = -1;
+            }
         }
-    }
 
-    function playClipForExport(clip, audioCtx, dest) {
-        return new Promise((resolve) => {
-            const vid = clip.videoElement;
-            vid.currentTime = clip.start;
-            vid.muted = true;
+        // 選択中、または次の一致箇所を置換する機能
+        function replaceText() {
+            const findTxt = document.getElementById('findInput').value;
+            const replaceTxt = document.getElementById('replaceInput').value;
+            if (!findTxt) return;
 
-            vid.onseeked = () => {
-                const sourceNode = audioCtx.createMediaElementSource(vid);
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-                sourceNode.connect(gainNode);
-                gainNode.connect(dest);
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
 
-                vid.play().catch(e => console.log(e));
-
-                const duration = clip.end - clip.start;
-                const startTime = performance.now();
-
-                function exportStep() {
-                    const elapsed = (performance.now() - startTime) / 1000;
-
-                    if (elapsed >= duration || vid.currentTime >= clip.end || vid.ended) {
-                        vid.pause();
-                        sourceNode.disconnect();
-                        gainNode.disconnect();
-                        resolve();
-                        return;
-                    }
-
-                    drawVideoToCanvas(vid);
-                    requestAnimationFrame(exportStep);
+            // 現在選択している文字列が検索ワードと一致していればそれを置換し、そうでなければ次を検索する
+            if (selectedText === findTxt) {
+                editor.value = editor.value.substring(0, start) + replaceTxt + editor.value.substring(end);
+                editor.setSelectionRange(start, start + replaceTxt.length);
+                currentSearchIndex = start + replaceTxt.length;
+                findNextText(); // 置換後に自動で次へ進む
+            } else {
+                findNextText();
+                // 次へ移動した後に一致していれば置換を実行
+                const newStart = editor.selectionStart;
+                const newEnd = editor.selectionEnd;
+                if (editor.value.substring(newStart, newEnd) === findTxt) {
+                    replaceText();
                 }
-                requestAnimationFrame(exportStep);
-            };
-        });
-    }
-</script>
+            }
+        }
 
+        // すべて置換する機能
+        function replaceAllText() {
+            const findTxt = document.getElementById('findInput').value;
+            const replaceTxt = document.getElementById('replaceInput').value;
+            if (!findTxt) return;
+
+            if (editor.value.includes(findTxt)) {
+                // 正規表現でグローバル置換（特殊文字のエスケープ処理対応）
+                const escapedFind = findTxt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedFind, 'g');
+                
+                const matchCount = (editor.value.match(regex) || []).length;
+                editor.value = editor.value.replace(regex, replaceTxt);
+                alert(`${matchCount 箇所を置き換えました。}`);
+            } else {
+                alert("見つかりませんでした");
+            }
+        }
+    </script>
 </body>
 </html>
