@@ -47,7 +47,7 @@
     <script>
         const editor = document.getElementById('editor');
         let lastSearchTerm = "";
-        let currentSearchIndex = -1;
+        let currentSearchIndex = 0;
 
         async function copyToClipboard() {
             try {
@@ -69,18 +69,7 @@
 
             userCode = userCode.replace(/document\.addEventListener\(\s*["']DOMContentLoaded["']\s*,/g, '(function(');
 
-            const fullHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Preview</title>
-</head>
-<body>
-    ${userCode}
-</body>
-</html>`;
-
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preview</title></head><body>${userCode}</body></html>`;
             const blob = new Blob([fullHtml], { type: 'text/html' });
             const blobUrl = URL.createObjectURL(blob);
             
@@ -90,12 +79,10 @@
             }
         }
 
-        // 次を検索してジャンプする機能
         function findNextText() {
             const txt = document.getElementById('findInput').value;
             if (!txt) return;
 
-            // 検索ワードが変わった場合、または前回の検索からエディタのカーソル位置が大きく変わった場合は検索位置をリセット
             if (lastSearchTerm !== txt) {
                 lastSearchTerm = txt;
                 currentSearchIndex = editor.selectionStart;
@@ -103,7 +90,6 @@
 
             let idx = editor.value.indexOf(txt, currentSearchIndex);
 
-            // 見つからなかったら先頭からもう一度探す（ループ検索）
             if (idx === -1) {
                 idx = editor.value.indexOf(txt, 0);
             }
@@ -112,19 +98,16 @@
                 editor.focus();
                 editor.setSelectionRange(idx, idx + txt.length);
                 
-                // スクロール位置の調整
                 const lines = editor.value.substr(0, idx).split("\n").length;
                 editor.scrollTop = (lines - 1) * 18;
 
-                // 次回のために検索開始位置を更新
                 currentSearchIndex = idx + txt.length;
             } else {
                 alert("見つかりませんでした");
-                currentSearchIndex = -1;
+                currentSearchIndex = 0;
             }
         }
 
-        // 選択中、または次の一致箇所を置換する機能
         function replaceText() {
             const findTxt = document.getElementById('findInput').value;
             const replaceTxt = document.getElementById('replaceInput').value;
@@ -134,15 +117,13 @@
             const end = editor.selectionEnd;
             const selectedText = editor.value.substring(start, end);
 
-            // 現在選択している文字列が検索ワードと一致していればそれを置換し、そうでなければ次を検索する
             if (selectedText === findTxt) {
                 editor.value = editor.value.substring(0, start) + replaceTxt + editor.value.substring(end);
                 editor.setSelectionRange(start, start + replaceTxt.length);
                 currentSearchIndex = start + replaceTxt.length;
-                findNextText(); // 置換後に自動で次へ進む
+                findNextText();
             } else {
                 findNextText();
-                // 次へ移動した後に一致していれば置換を実行
                 const newStart = editor.selectionStart;
                 const newEnd = editor.selectionEnd;
                 if (editor.value.substring(newStart, newEnd) === findTxt) {
@@ -151,20 +132,18 @@
             }
         }
 
-        // すべて置換する機能
         function replaceAllText() {
             const findTxt = document.getElementById('findInput').value;
             const replaceTxt = document.getElementById('replaceInput').value;
             if (!findTxt) return;
 
             if (editor.value.includes(findTxt)) {
-                // 正規表現でグローバル置換（特殊文字のエスケープ処理対応）
                 const escapedFind = findTxt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(escapedFind, 'g');
                 
                 const matchCount = (editor.value.match(regex) || []).length;
                 editor.value = editor.value.replace(regex, replaceTxt);
-                alert(`${matchCount 箇所を置き換えました。}`);
+                alert(matchCount + "箇所を置き換えました。");
             } else {
                 alert("見つかりませんでした");
             }
