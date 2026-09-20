@@ -2,150 +2,831 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PocketDev - Final Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio & MOV/MP4 Editor</title>
+    <!-- FFmpeg.wasm CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        :root { --accent: #007acc; --bg: #1e1e1e; --panel: #252526; }
-        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: white; display: flex; flex-direction: column; }
-        .toolbar { flex-shrink: 0; padding: 8px; background: #333; display: flex; flex-direction: column; gap: 4px; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-        .toolbar-row { display: flex; gap: 4px; width: 100%; }
-        input, button { padding: 6px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #444; color: white; flex: 1 1 auto; }
-        button { background: var(--accent); border: none; font-weight: bold; cursor: pointer; white-space: nowrap; }
-        button:hover { opacity: 0.9; }
-        .btn-run { background: #28a745; min-width: 90px; }
-        .btn-clip { background: #555; }
-        #editor-container { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
-        #editor { flex: 1; width: 100%; border: none; padding: 10px; background: var(--panel); color: #d4d4d4; font-family: monospace; font-size: 14px; resize: none; box-sizing: border-box; outline: none; overflow-y: auto; }
-        .footer-info { font-size: 10px; color: #888; padding: 4px 10px; background: #1a1a1a; }
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --danger: #ef4444;
+            --accent: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 16px;
+            max-width: 650px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .file-input-wrapper input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .btn {
+            display: inline-block;
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+
+        .btn:disabled {
+            background-color: var(--border);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            background: rgba(0, 0, 0, 0.25);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .file-name {
+            font-size: 0.95rem;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 50%;
+        }
+
+        .file-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .btn-mini {
+            background: var(--border);
+            color: var(--text);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .btn-play {
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-play.playing {
+            background: #f59e0b;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .editor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+            font-size: 0.85rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--primary);
+            background: var(--bg);
+        }
+
+        input[type="number"], select {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        input[type="number"] {
+            width: 70px;
+            text-align: right;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text);
+            margin-top: 4px;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 12px;
+            border-radius: 6px;
+        }
+
+        .status-msg {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <div class="toolbar-row">
-            <input type="text" id="findInput" placeholder="検索ワード">
-            <button onclick="findNextText()">🔍 次へ</button>
-            <button class="btn-clip" onclick="copyToClipboard()">コピー</button>
-            <button class="btn-clip" onclick="pasteFromClipboard()">貼り付け</button>
-        </div>
-        <div class="toolbar-row">
-            <input type="text" id="replaceInput" placeholder="置換後のワード">
-            <button onclick="replaceText()">置換</button>
-            <button onclick="replaceAllText()">すべて置換</button>
-            <button class="btn-run" onclick="runCode()">▶ 実行</button>
-        </div>
+    <h1>Audio & MOV/MP4 Editor</h1>
+
+    <div class="mode-selector">
+        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">編集・結合</button>
+        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">音声抽出 (WAV)</button>
     </div>
 
-    <div id="editor-container">
-        <textarea id="editor" spellcheck="false" placeholder="ここにHTMLを貼り付けてください..."></textarea>
+    <div class="card">
+        <label class="file-input-wrapper">
+            <span id="fileInputLabel">ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)</span>
+            <input type="file" id="audioFiles" accept="audio/*,video/*,.mov,.mp4,.wav,.mp3" multiple>
+        </label>
+        <div id="statusMsg" class="status-msg"></div>
+        <ul id="fileList" class="file-list"></ul>
     </div>
 
-    <div class="footer-info">
-        ※ 実行時に「ポップアップの許可」を求められた場合は許可してください。
+    <div class="card">
+        <button id="processBtn" class="btn" disabled>書き出す (トリミング・編集・結合)</button>
+        <div id="outputContainer" style="margin-top: 16px; display: none;">
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">プレビュー / ダウンロード:</p>
+            <audio id="audioPreview" controls></audio>
+            <a id="downloadBtn" class="btn" style="margin-top: 12px; text-decoration: none; background-color: var(--accent);">ファイルをダウンロード</a>
+        </div>
     </div>
 
     <script>
-        const editor = document.getElementById('editor');
-        let lastSearchTerm = "";
-        let currentSearchIndex = 0;
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: false });
 
-        async function copyToClipboard() {
-            try {
-                await navigator.clipboard.writeText(editor.value);
-                alert("コピーしました");
-            } catch (err) { alert("失敗: " + err); }
+        const audioFileInput = document.getElementById('audioFiles');
+        const fileInputLabel = document.getElementById('fileInputLabel');
+        const fileListEl = document.getElementById('fileList');
+        const processBtn = document.getElementById('processBtn');
+        const outputContainer = document.getElementById('outputContainer');
+        const audioPreview = document.getElementById('audioPreview');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const modeEditBtn = document.getElementById('modeEditBtn');
+        const modeConvertBtn = document.getElementById('modeConvertBtn');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let currentMode = 'edit';
+        let fileItems = [];
+        let audioContext = null;
+        let activeSourceNode = null;
+        let playingIndex = -1;
+
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
         }
 
-        async function pasteFromClipboard() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (confirm("内容を置き換えますか？")) { editor.value = text; }
-            } catch (err) { alert("貼り付け失敗: " + err); }
-        }
+        window.setMode = function(mode) {
+            stopPreview();
+            currentMode = mode;
+            fileItems = [];
+            updateFileList();
+            outputContainer.style.display = 'none';
 
-        function runCode() {
-            let userCode = editor.value;
-            if (!userCode.trim()) { alert("コードを入力してください"); return; }
-
-            userCode = userCode.replace(/document\.addEventListener\(\s*["']DOMContentLoaded["']\s*,/g, '(function(');
-
-            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preview</title></head><body>${userCode}</body></html>`;
-            const blob = new Blob([fullHtml], { type: 'text/html' });
-            const blobUrl = URL.createObjectURL(blob);
-            
-            const newWin = window.open(blobUrl, '_blank');
-            if (!newWin) {
-                alert("ポップアップがブロックされました。");
-            }
-        }
-
-        function findNextText() {
-            const txt = document.getElementById('findInput').value;
-            if (!txt) return;
-
-            if (lastSearchTerm !== txt) {
-                lastSearchTerm = txt;
-                currentSearchIndex = editor.selectionStart;
-            }
-
-            let idx = editor.value.indexOf(txt, currentSearchIndex);
-
-            if (idx === -1) {
-                idx = editor.value.indexOf(txt, 0);
-            }
-
-            if (idx !== -1) {
-                editor.focus();
-                editor.setSelectionRange(idx, idx + txt.length);
-                
-                const lines = editor.value.substr(0, idx).split("\n").length;
-                editor.scrollTop = (lines - 1) * 18;
-
-                currentSearchIndex = idx + txt.length;
+            if (mode === 'edit') {
+                modeEditBtn.classList.add('active');
+                modeConvertBtn.classList.remove('active');
+                fileInputLabel.textContent = 'ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)';
+                audioFileInput.multiple = true;
+                processBtn.textContent = '書き出す (トリミング・編集・結合)';
             } else {
-                alert("見つかりませんでした");
-                currentSearchIndex = 0;
+                modeConvertBtn.classList.add('active');
+                modeEditBtn.classList.remove('active');
+                fileInputLabel.textContent = '動画・音声ファイルを選択 (.mov / .mp4 / .mp3 / .wav)';
+                audioFileInput.multiple = false;
+                processBtn.textContent = '音声(WAV)に変換';
             }
+        };
+
+        async function loadAudioBufferWithFFmpeg(file) {
+            const ctx = getAudioContext();
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                return await ctx.decodeAudioData(arrayBuffer);
+            } catch (e) {
+                console.warn('標準デコード不能。FFmpegエンジンを起動します:', file.name);
+            }
+
+            if (!ffmpeg.isLoaded()) {
+                statusMsg.textContent = 'FFmpegエンジン初期化中...';
+                await ffmpeg.load();
+            }
+
+            statusMsg.textContent = `「${file.name}」から音声を抽出中...`;
+
+            const safeFileName = 'input_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+            const outputFileName = 'output_' + Date.now() + '.wav';
+
+            ffmpeg.FS('writeFile', safeFileName, await fetchFile(file));
+            await ffmpeg.run('-i', safeFileName, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputFileName);
+
+            const data = ffmpeg.FS('readFile', outputFileName);
+
+            try {
+                ffmpeg.FS('unlink', safeFileName);
+                ffmpeg.FS('unlink', outputFileName);
+            } catch (err) {}
+
+            statusMsg.textContent = '';
+            return await ctx.decodeAudioData(data.buffer);
         }
 
-        function replaceText() {
-            const findTxt = document.getElementById('findInput').value;
-            const replaceTxt = document.getElementById('replaceInput').value;
-            if (!findTxt) return;
+        audioFileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const selectedText = editor.value.substring(start, end);
+            processBtn.disabled = true;
+            processBtn.textContent = '読み込み中...';
 
-            if (selectedText === findTxt) {
-                editor.value = editor.value.substring(0, start) + replaceTxt + editor.value.substring(end);
-                editor.setSelectionRange(start, start + replaceTxt.length);
-                currentSearchIndex = start + replaceTxt.length;
-                findNextText();
-            } else {
-                findNextText();
-                const newStart = editor.selectionStart;
-                const newEnd = editor.selectionEnd;
-                if (editor.value.substring(newStart, newEnd) === findTxt) {
-                    replaceText();
+            for (let file of files) {
+                try {
+                    const audioBuffer = await loadAudioBufferWithFFmpeg(file);
+
+                    fileItems.push({
+                        file: file,
+                        buffer: audioBuffer,
+                        duration: audioBuffer.duration,
+                        startTime: 0,
+                        endTime: audioBuffer.duration,
+                        speed: 1.0,
+                        volume: 1.0,
+                        reverse: false,
+                        filter: 'none'
+                    });
+                } catch (err) {
+                    console.error('読み込みエラー:', file.name, err);
+                    alert(`「${file.name}」の読み込みに失敗しました。ファイルが破損している可能性があります。`);
                 }
             }
+
+            statusMsg.textContent = '';
+            audioFileInput.value = '';
+            updateFileList();
+            processBtn.disabled = fileItems.length === 0;
+            processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
+        });
+
+        function stopPreview() {
+            if (activeSourceNode) {
+                try {
+                    activeSourceNode.stop();
+                    activeSourceNode.disconnect();
+                } catch (e) {}
+                activeSourceNode = null;
+            }
+            playingIndex = -1;
+            updatePlayButtons();
         }
 
-        function replaceAllText() {
-            const findTxt = document.getElementById('findInput').value;
-            const replaceTxt = document.getElementById('replaceInput').value;
-            if (!findTxt) return;
+        window.togglePreview = function(index) {
+            const ctx = getAudioContext();
 
-            if (editor.value.includes(findTxt)) {
-                const escapedFind = findTxt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(escapedFind, 'g');
-                
-                const matchCount = (editor.value.match(regex) || []).length;
-                editor.value = editor.value.replace(regex, replaceTxt);
-                alert(matchCount + "箇所を置き換えました。");
-            } else {
-                alert("見つかりませんでした");
+            if (playingIndex === index) {
+                stopPreview();
+                return;
+            }
+
+            stopPreview();
+
+            const item = fileItems[index];
+            const numChannels = item.buffer.numberOfChannels;
+            const sampleRate = item.buffer.sampleRate;
+
+            let srcBuffer = item.buffer;
+
+            if (item.reverse) {
+                srcBuffer = ctx.createBuffer(numChannels, item.buffer.length, sampleRate);
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const inData = item.buffer.getChannelData(ch);
+                    const outData = srcBuffer.getChannelData(ch);
+                    for (let i = 0; i < inData.length; i++) {
+                        outData[i] = inData[inData.length - 1 - i];
+                    }
+                }
+            }
+
+            const source = ctx.createBufferSource();
+            source.buffer = srcBuffer;
+            source.playbackRate.value = item.speed;
+
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = item.volume;
+
+            let lastNode = source;
+            if (item.filter !== 'none') {
+                const filterNode = ctx.createBiquadFilter();
+                if (item.filter === 'lowpass') {
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.value = 1000;
+                } else if (item.filter === 'highpass') {
+                    filterNode.type = 'highpass';
+                    filterNode.frequency.value = 2000;
+                } else if (item.filter === 'bassboost') {
+                    filterNode.type = 'lowshelf';
+                    filterNode.frequency.value = 200;
+                    filterNode.gain.value = 10;
+                }
+                lastNode.connect(filterNode);
+                lastNode = filterNode;
+            }
+
+            lastNode.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            const trimDuration = item.endTime - item.startTime;
+            let actualStart = item.startTime;
+            if (item.reverse) {
+                actualStart = item.duration - item.endTime;
+            }
+
+            source.start(0, actualStart, trimDuration);
+            activeSourceNode = source;
+            playingIndex = index;
+
+            source.onended = () => {
+                if (playingIndex === index) {
+                    playingIndex = -1;
+                    activeSourceNode = null;
+                    updatePlayButtons();
+                }
+            };
+
+            updatePlayButtons();
+        };
+
+        function updatePlayButtons() {
+            fileItems.forEach((_, idx) => {
+                const btn = document.getElementById(`playBtn_${idx}`);
+                if (btn) {
+                    if (idx === playingIndex) {
+                        btn.textContent = '■ 停止';
+                        btn.classList.add('playing');
+                    } else {
+                        btn.textContent = '▶ 再生';
+                        btn.classList.remove('playing');
+                    }
+                }
+            });
+        }
+
+        function updateFileList() {
+            fileListEl.innerHTML = '';
+            fileItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+
+                const isPlaying = playingIndex === index;
+
+                const controlsHtml = currentMode === 'edit' ? `
+                    <div class="file-controls">
+                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
+                            ${isPlaying ? '■ 停止' : '▶ 再生'}
+                        </button>
+                        <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === fileItems.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
+                    </div>
+                ` : `
+                    <div class="file-controls">
+                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
+                            ${isPlaying ? '■ 停止' : '▶ 再生'}
+                        </button>
+                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
+                    </div>
+                `;
+
+                let editorHtml = '';
+                if (currentMode === 'edit') {
+                    editorHtml = `
+                        <div class="editor-grid">
+                            <div class="control-group">
+                                <label>開始位置 (秒)</label>
+                                <div class="input-row">
+                                    <input type="range" id="stRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.startTime}" oninput="updateParam(${index}, 'startTime', this.value, 'range')">
+                                    <input type="number" id="stNum_${index}" step="0.01" value="${item.startTime.toFixed(2)}" oninput="updateParam(${index}, 'startTime', this.value, 'number')">
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>終了位置 (秒)</label>
+                                <div class="input-row">
+                                    <input type="range" id="etRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.endTime}" oninput="updateParam(${index}, 'endTime', this.value, 'range')">
+                                    <input type="number" id="etNum_${index}" step="0.01" value="${item.endTime.toFixed(2)}" oninput="updateParam(${index}, 'endTime', this.value, 'number')">
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>再生速度 (倍)</label>
+                                <div class="input-row">
+                                    <input type="range" id="spRange_${index}" min="0.25" max="5.0" step="0.05" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'range')">
+                                    <input type="number" id="spNum_${index}" step="0.1" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'number')">
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>音量 (倍)</label>
+                                <div class="input-row">
+                                    <input type="range" id="volRange_${index}" min="0" max="10.0" step="0.05" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'range')">
+                                    <input type="number" id="volNum_${index}" step="0.1" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'number')">
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>フィルター</label>
+                                <select onchange="updateParam(${index}, 'filter', this.value)">
+                                    <option value="none" ${item.filter === 'none' ? 'selected' : ''}>なし</option>
+                                    <option value="lowpass" ${item.filter === 'lowpass' ? 'selected' : ''}>ローパス (こもり音)</option>
+                                    <option value="highpass" ${item.filter === 'highpass' ? 'selected' : ''}>ハイパス (シャカシャカ音)</option>
+                                    <option value="bassboost" ${item.filter === 'bassboost' ? 'selected' : ''}>低音ブースト</option>
+                                </select>
+                            </div>
+                            <div class="control-group" style="justify-content: flex-end;">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" ${item.reverse ? 'checked' : ''} onchange="updateParam(${index}, 'reverse', this.checked)">
+                                    逆再生
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                li.innerHTML = `
+                    <div class="file-header">
+                        <span class="file-name">${currentMode === 'edit' ? (index + 1) + '. ' : ''}${item.file.name}</span>
+                        ${controlsHtml}
+                    </div>
+                    ${editorHtml}
+                `;
+                fileListEl.appendChild(li);
+            });
+
+            processBtn.disabled = fileItems.length === 0;
+        }
+
+        window.updateParam = function(index, param, value, sourceType = 'direct') {
+            const item = fileItems[index];
+            const numVal = parseFloat(value);
+
+            if (param === 'startTime') {
+                const val = isNaN(numVal) ? 0 : Math.max(0, numVal);
+                item.startTime = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`stRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`stNum_${index}`);
+                    if (el) el.value = val.toFixed(2);
+                }
+            } else if (param === 'endTime') {
+                const val = isNaN(numVal) ? item.duration : valConstraint(numVal, 0, item.duration);
+                item.endTime = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`etRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`etNum_${index}`);
+                    if (el) el.value = val.toFixed(2);
+                }
+            } else if (param === 'speed') {
+                const val = isNaN(numVal) ? 1.0 : Math.max(0.01, numVal); // 最低0.01倍
+                item.speed = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`spRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`spNum_${index}`);
+                    if (el) el.value = val;
+                }
+            } else if (param === 'volume') {
+                const val = isNaN(numVal) ? 1.0 : Math.max(0, numVal); // 0以上なら無限に設定可能
+                item.volume = val;
+                if (sourceType !== 'range') {
+                    const el = document.getElementById(`volRange_${index}`);
+                    if (el) el.value = val;
+                }
+                if (sourceType !== 'number') {
+                    const el = document.getElementById(`volNum_${index}`);
+                    if (el) el.value = val;
+                }
+            } else if (param === 'filter') {
+                item.filter = value;
+            } else if (param === 'reverse') {
+                item.reverse = value;
+            }
+
+            if (playingIndex === index) {
+                togglePreview(index);
+            }
+        };
+
+        function valConstraint(val, min, max) {
+            return Math.min(Math.max(val, min), max);
+        }
+
+        window.moveFile = function(index, direction) {
+            stopPreview();
+            const targetIndex = index + direction;
+            if (targetIndex >= 0 && targetIndex < fileItems.length) {
+                const temp = fileItems[index];
+                fileItems[index] = fileItems[targetIndex];
+                fileItems[targetIndex] = temp;
+                updateFileList();
+            }
+        };
+
+        window.removeFile = function(index) {
+            if (playingIndex === index) {
+                stopPreview();
+            }
+            fileItems.splice(index, 1);
+            updateFileList();
+        };
+
+        processBtn.addEventListener('click', async () => {
+            stopPreview();
+            processBtn.disabled = true;
+            processBtn.textContent = '処理中...';
+
+            try {
+                const ctx = getAudioContext();
+                const processedBuffers = [];
+
+                for (let item of fileItems) {
+                    const sampleRate = item.buffer.sampleRate;
+                    const numChannels = item.buffer.numberOfChannels;
+                    const trimDuration = item.endTime - item.startTime;
+                    const outputDuration = trimDuration / item.speed;
+                    const outputLength = Math.floor(outputDuration * sampleRate);
+
+                    const offlineCtx = new OfflineAudioContext(numChannels, outputLength, sampleRate);
+
+                    let srcBuffer = item.buffer;
+
+                    if (item.reverse) {
+                        srcBuffer = offlineCtx.createBuffer(numChannels, item.buffer.length, sampleRate);
+                        for (let ch = 0; ch < numChannels; ch++) {
+                            const inData = item.buffer.getChannelData(ch);
+                            const outData = srcBuffer.getChannelData(ch);
+                            for (let i = 0; i < inData.length; i++) {
+                                outData[i] = inData[inData.length - 1 - i];
+                            }
+                        }
+                    }
+
+                    const source = offlineCtx.createBufferSource();
+                    source.buffer = srcBuffer;
+                    source.playbackRate.value = item.speed;
+
+                    const gainNode = offlineCtx.createGain();
+                    gainNode.gain.value = item.volume;
+
+                    let lastNode = source;
+                    if (item.filter !== 'none') {
+                        const filterNode = offlineCtx.createBiquadFilter();
+                        if (item.filter === 'lowpass') {
+                            filterNode.type = 'lowpass';
+                            filterNode.frequency.value = 1000;
+                        } else if (item.filter === 'highpass') {
+                            filterNode.type = 'highpass';
+                            filterNode.frequency.value = 2000;
+                        } else if (item.filter === 'bassboost') {
+                            filterNode.type = 'lowshelf';
+                            filterNode.frequency.value = 200;
+                            filterNode.gain.value = 10;
+                        }
+                        lastNode.connect(filterNode);
+                        lastNode = filterNode;
+                    }
+
+                    lastNode.connect(gainNode);
+                    gainNode.connect(offlineCtx.destination);
+
+                    let actualStart = item.startTime;
+                    if (item.reverse) {
+                        actualStart = item.duration - item.endTime;
+                    }
+
+                    source.start(0, actualStart, trimDuration);
+                    const renderedBuffer = await offlineCtx.startRendering();
+                    processedBuffers.push(renderedBuffer);
+                }
+
+                if (processedBuffers.length === 0) return;
+
+                const sampleRate = processedBuffers[0].sampleRate;
+                const numChannels = processedBuffers[0].numberOfChannels;
+                const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
+
+                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
+
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const finalData = finalBuffer.getChannelData(channel);
+                    let offset = 0;
+                    for (let buf of processedBuffers) {
+                        const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
+                        finalData.set(channelData, offset);
+                        offset += buf.length;
+                    }
+                }
+
+                const wavBlob = audioBufferToWav(finalBuffer);
+                const url = URL.createObjectURL(wavBlob);
+
+                audioPreview.src = url;
+                downloadBtn.href = url;
+                downloadBtn.download = `converted_${Date.now()}.wav`;
+                outputContainer.style.display = 'block';
+
+            } catch (err) {
+                alert('書き出し中にエラーが発生しました。');
+                console.error(err);
+            } finally {
+                processBtn.disabled = false;
+                processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
+            }
+        });
+
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1;
+            const bitDepth = 16;
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            const dataLength = buffer.length * blockAlign;
+            const bufferLength = 44 + dataLength;
+
+            const arrayBuffer = new ArrayBuffer(bufferLength);
+            const view = new DataView(arrayBuffer);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataLength, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+
+            const channels = [];
+            for (let i = 0; i < numChannels; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+
+            let offset = 44;
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    let sample = channels[channel][i];
+                    sample = Math.max(-1, Math.min(1, sample));
+                    sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
             }
         }
     </script>
