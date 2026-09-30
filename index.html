@@ -2,833 +2,545 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio & MOV/MP4 Editor</title>
-    <!-- FFmpeg.wasm CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELITE AUDIO ENGINE v1.2</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AudioElite">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --danger: #ef4444;
-            --accent: #10b981;
+            --bg: #020617; --card: #1e293b; --primary: #aa98f8;
+            --success: #22c55e; --error: #f43f5e; --text: #f1f5f9;
+            --accent: #ec4899;
         }
-
-        * {
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        #audio-container { 
+            background: var(--card); width: 92%; max-width: 380px; 
+            height: 94vh; padding: 1.2rem; border-radius: 36px; 
+            display: flex; flex-direction: column; align-items: center; 
+            position: relative; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding: 16px;
-            max-width: 650px;
-            margin: 0 auto;
-            min-height: 100vh;
-        }
+        .title-logo { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.8rem; letter-spacing: -1px; text-align: center;}
+        
+        /* データソースエリア */
+        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; width: 100%; text-align: left; }
+        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 8px; box-sizing: border-box; max-height: 80px; overflow-y: auto; margin-bottom: 8px; }
+        .storage-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
+        .storage-item.selected { background: rgba(170, 152, 248, 0.2) !important; border-color: var(--primary); }
 
-        h1 {
-            font-size: 1.5rem;
-            text-align: center;
-            margin-bottom: 20px;
+        /* コピペ用入力エリア */
+        .paste-container { width: 100%; display: flex; flex-direction: column; margin-bottom: 12px; position: relative; }
+        .paste-textarea { 
+            width: 100%; height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; 
+            color: white; padding: 8px; border-radius: 12px; font-size: 0.75rem; resize: none; box-sizing: border-box;
+            font-family: inherit; transition: border-color 0.2s;
         }
+        .paste-textarea:focus { border-color: var(--primary); outline: none; }
+        .paste-textarea.active-input { border-color: var(--accent); background: rgba(236, 72, 153, 0.05); }
+        .clear-btn { position: absolute; right: 8px; bottom: 6px; background: rgba(255,255,255,0.1); border: none; color: #94a3b8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
 
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border);
+        /* 状況表示ボード */
+        .status-board {
+            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
+            padding: 15px; box-sizing: border-box; text-align: center;
+            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
+            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 90px;
         }
+        #current-track { font-size: 0.75rem; color: var(--primary); font-weight: bold; margin-bottom: 6px; }
+        #now-playing { font-size: 1.4rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 3.5rem; display: flex; align-items: center; justify-content: center; }
 
-        .mode-selector {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 4px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
+        /* コントロール・設定エリア */
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 20px; box-sizing: border-box; margin-bottom: 12px;}
+        .config-item { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: #94a3b8; }
+        .config-item.full { grid-column: span 2; }
+        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
+        
+        .slider-container { display: flex; align-items: center; gap: 8px; }
+        .slider-container input { flex-grow: 1; accent-color: var(--primary); }
+        .slider-val { width: 25px; text-align: right; font-family: monospace; }
 
-        .mode-btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mode-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .file-input-wrapper {
-            position: relative;
-            display: block;
-            width: 100%;
-            padding: 16px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 2px dashed var(--border);
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
-
-        .file-input-wrapper input {
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .btn {
-            display: inline-block;
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            transition: background-color 0.2s;
-        }
-
-        .btn:disabled {
-            background-color: var(--border);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .file-list {
-            list-style: none;
-        }
-
-        .file-item {
-            background: rgba(0, 0, 0, 0.25);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            border: 1px solid var(--border);
-        }
-
-        .file-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .file-name {
-            font-size: 0.95rem;
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 50%;
-        }
-
-        .file-controls {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .btn-mini {
-            background: var(--border);
-            color: var(--text);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        .btn-play {
-            background: var(--accent);
-            color: white;
-            font-weight: bold;
-        }
-
-        .btn-play.playing {
-            background: #f59e0b;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .editor-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed var(--border);
-            font-size: 0.85rem;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .control-group label {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-muted);
-        }
-
-        .input-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        input[type="range"] {
-            flex: 1;
-            accent-color: var(--primary);
-            background: var(--bg);
-        }
-
-        input[type="number"], select {
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 4px 6px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-
-        input[type="number"] {
-            width: 70px;
-            text-align: right;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            color: var(--text);
-            margin-top: 4px;
-        }
-
-        audio {
-            width: 100%;
-            margin-top: 12px;
-            border-radius: 6px;
-        }
-
-        .status-msg {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 8px;
-            text-align: center;
-        }
+        /* 操作ボタンエリア */
+        .btn-group { display: flex; gap: 8px; width: 100%; }
+        .control-btn { flex: 2; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
+        .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
+        
+        /* PiP専用ボタン */
+        .pip-btn { flex: 1; background: #334155; color: white; font-size: 0.85rem; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h1>Audio & MOV/MP4 Editor</h1>
+<div id="audio-container">
+    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.2</span></div>
 
-    <div class="mode-selector">
-        <button class="mode-btn active" id="modeEditBtn" onclick="setMode('edit')">編集・結合</button>
-        <button class="mode-btn" id="modeConvertBtn" onclick="setMode('convert')">音声抽出 (WAV)</button>
+    <div class="storage-title">アプリ経由のデータソース</div>
+    <div class="storage-box" id="saved-lists"></div>
+
+    <div class="storage-title">または、ここにテキストをコピペ</div>
+    <div class="paste-container">
+        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え、または、通常の文章をペースト..." oninput="handlePasteInput()"></textarea>
+        <button class="clear-btn" id="clear-btn" onclick="clearPasteInput()" style="display:none;">クリア</button>
     </div>
 
-    <div class="card">
-        <label class="file-input-wrapper">
-            <span id="fileInputLabel">ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)</span>
-            <input type="file" id="audioFiles" accept="audio/*,video/*,.mov,.mp4,.wav,.mp3" multiple>
-        </label>
-        <div id="statusMsg" class="status-msg"></div>
-        <ul id="fileList" class="file-list"></ul>
+    <div class="status-board">
+        <div id="current-track">STOPPED</div>
+        <div id="now-playing">再生ボタンを押してください</div>
     </div>
 
-    <div class="card">
-        <button id="processBtn" class="btn" disabled>書き出す (トリミング・編集・結合)</button>
-        <div id="outputContainer" style="margin-top: 16px; display: none;">
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">プレビュー / ダウンロード:</p>
-            <audio id="audioPreview" controls></audio>
-            <a id="downloadBtn" class="btn" style="margin-top: 12px; text-decoration: none; background-color: var(--accent);">ファイルをダウンロード</a>
+    <div class="config-grid">
+        <div class="config-item full">
+            <span>声の種類 (ボイスキャスト)</span>
+            <select id="voice-select"><option value="">システム標準音声</option></select>
+        </div>
+        <div class="config-item">
+            <span>読み上げモード</span>
+            <select id="play-mode">
+                <option value="set">問題 ➔ 答え (セット)</option>
+                <option value="q">問題（または単一テキスト）のみ</option>
+                <option value="a">答えのみ</option>
+            </select>
+        </div>
+        <div class="config-item">
+            <span>次への間隔 (秒)</span>
+            <input type="number" id="pause-sec" class="config-input" value="2" min="0" max="10">
+        </div>
+        <div class="config-item full">
+            <span>速度 (Speed)</span>
+            <div class="slider-container">
+                <input type="range" id="val-speed" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('lbl-speed').innerText=this.value">
+                <span class="slider-val" id="lbl-speed">1.0</span>
+            </div>
+        </div>
+        <div class="config-item full">
+            <span>音程 (Pitch)</span>
+            <div class="slider-container">
+                <input type="range" id="val-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('lbl-pitch').innerText=this.value">
+                <span class="slider-val" id="lbl-pitch">1.0</span>
+            </div>
         </div>
     </div>
 
-    <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: false });
+    <div class="btn-group">
+        <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
+        <button id="pip-trigger-btn" class="pip-btn" onclick="togglePiP()">PIP WINDOW</button>
+    </div>
+</div>
 
-        const audioFileInput = document.getElementById('audioFiles');
-        const fileInputLabel = document.getElementById('fileInputLabel');
-        const fileListEl = document.getElementById('fileList');
-        const processBtn = document.getElementById('processBtn');
-        const outputContainer = document.getElementById('outputContainer');
-        const audioPreview = document.getElementById('audioPreview');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const modeEditBtn = document.getElementById('modeEditBtn');
-        const modeConvertBtn = document.getElementById('modeConvertBtn');
-        const statusMsg = document.getElementById('statusMsg');
+<video id="hidden-pip-video" autoplay playsinline muted style="display:none;"></video>
+<canvas id="hidden-pip-canvas" width="400" height="200" style="display:none;"></canvas>
 
-        let currentMode = 'edit';
-        let fileItems = [];
-        let audioContext = null;
-        let activeSourceNode = null;
-        let playingIndex = -1;
+<script>
+let database = [];
+let selectedStoredText = null;
+let isPlaying = false;
+let synth = window.speechSynthesis;
+let voices = [];
+let timeoutId = null;
 
-        function getAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            return audioContext;
+// --- バックグラウンド・PiP用の制御変数 ---
+let wakeLock = null;
+let audioCtx = null;
+let silenceNode = null;
+let pipCanvasStream = null;
+let isCanvasLooping = false;
+
+window.onload = function() {
+    renderSavedLists();
+    loadVoices();
+    if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadVoices;
+    }
+    
+    document.body.addEventListener('click', initAudioContext, { once: true });
+    document.body.addEventListener('touchstart', initAudioContext, { once: true });
+    
+    // ページを閉じたりバックグラウンド化でPiPが解除された場合の監視イベント
+    const video = document.getElementById('hidden-pip-video');
+    video.addEventListener('leavepictureinpicture', () => {
+        document.getElementById('pip-trigger-btn').style.background = '#334155';
+    });
+};
+
+function initAudioContext() {
+    if (audioCtx) return;
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+        silenceNode = audioCtx.createBufferSource();
+        silenceNode.buffer = buffer;
+        silenceNode.loop = true;
+        silenceNode.connect(audioCtx.destination);
+    } catch (e) {
+        console.error("Web Audio API 初期化エラー:", e);
+    }
+}
+
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+        } catch (err) {
+            console.error(`Wake Lock エラー: ${err.name}`);
+        }
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; });
+    }
+}
+
+// --- 【新機能】テキストを描画して疑似的な映像を作る処理ループ ---
+function startCanvasRenderLoop() {
+    if (isCanvasLooping) return;
+    isCanvasLooping = true;
+
+    const canvas = document.getElementById('hidden-pip-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function renderFrame() {
+        if (!isCanvasLooping) return;
+
+        // 1. 背景をクリア・描画
+        ctx.fillStyle = "#0f172a"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. モード（上部のステータス）を描画
+        const modeText = document.getElementById('current-track').innerText;
+        ctx.fillStyle = "#aa98f8"; 
+        ctx.font = "bold 14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(modeText, canvas.width / 2, 35);
+
+        // 3. メインの読み上げテキストを中央に描画
+        const text = document.getElementById('now-playing').innerText;
+        ctx.fillStyle = "#f1f5f9"; 
+        ctx.font = "bold 22px sans-serif";
+        
+        // 長い文字列を安全に表示するため簡易折り返し処理
+        if (text.length > 14) {
+            ctx.fillText(text.substring(0, 14), canvas.width / 2, 100);
+            ctx.fillText(text.substring(14, 28), canvas.width / 2, 135);
+        } else {
+            ctx.fillText(text, canvas.width / 2, 110);
         }
 
-        window.setMode = function(mode) {
-            stopPreview();
-            currentMode = mode;
-            fileItems = [];
-            updateFileList();
-            outputContainer.style.display = 'none';
+        requestAnimationFrame(renderFrame);
+    }
+    renderFrame();
+}
 
-            if (mode === 'edit') {
-                modeEditBtn.classList.add('active');
-                modeConvertBtn.classList.remove('active');
-                fileInputLabel.textContent = 'ファイルを選択 (.mov / .mp4 / .mp3 / .wav 複数可)';
-                audioFileInput.multiple = true;
-                processBtn.textContent = '書き出す (トリミング・編集・結合)';
-            } else {
-                modeConvertBtn.classList.add('active');
-                modeEditBtn.classList.remove('active');
-                fileInputLabel.textContent = '動画・音声ファイルを選択 (.mov / .mp4 / .mp3 / .wav)';
-                audioFileInput.multiple = false;
-                processBtn.textContent = '音声(WAV)に変換';
+// --- 【新機能】ピクチャーインピクチャー(PiP)ウィンドウの切り替え制御 ---
+async function togglePiP() {
+    const video = document.getElementById('hidden-pip-video');
+    const canvas = document.getElementById('hidden-pip-canvas');
+    const pipBtn = document.getElementById('pip-trigger-btn');
+
+    if (!document.pictureInPictureEnabled) {
+        alert("お使いの端末・ブラウザはピクチャー・イン・ピクチャー機能に対応していません。");
+        return;
+    }
+
+    try {
+        if (document.pictureInPictureElement) {
+            // すでに起動中なら終了する
+            await document.exitPictureInPicture();
+            pipBtn.style.background = '#334155';
+        } else {
+            // キャンバス描画ループを開始
+            startCanvasRenderLoop();
+            
+            // キャンバスから映像のメディアストリーム(毎秒5フレーム)を抽出してvideoに供給
+            if (!video.srcObject) {
+                pipCanvasStream = canvas.captureStream(5);
+                video.srcObject = pipCanvasStream;
             }
-        };
-
-        async function loadAudioBufferWithFFmpeg(file) {
-            const ctx = getAudioContext();
-
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                return await ctx.decodeAudioData(arrayBuffer);
-            } catch (e) {
-                console.warn('標準デコード不能。FFmpegエンジンを起動します:', file.name);
-            }
-
-            if (!ffmpeg.isLoaded()) {
-                statusMsg.textContent = 'FFmpegエンジン初期化中...';
-                await ffmpeg.load();
-            }
-
-            statusMsg.textContent = `「${file.name}」から音声を抽出中...`;
-
-            const safeFileName = 'input_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-            const outputFileName = 'output_' + Date.now() + '.wav';
-
-            ffmpeg.FS('writeFile', safeFileName, await fetchFile(file));
-            await ffmpeg.run('-i', safeFileName, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', outputFileName);
-
-            const data = ffmpeg.FS('readFile', outputFileName);
-
-            try {
-                ffmpeg.FS('unlink', safeFileName);
-                ffmpeg.FS('unlink', outputFileName);
-            } catch (err) {}
-
-            statusMsg.textContent = '';
-            return await ctx.decodeAudioData(data.buffer);
+            
+            await video.play();
+            await video.requestPictureInPicture();
+            pipBtn.style.background = 'var(--accent)';
         }
+    } catch (e) {
+        console.error("PiP制御エラー:", e);
+        alert("起動できませんでした。先に音声の『START AUDIO』を押して再生状態にしてからお試しください。");
+    }
+}
 
-        audioFileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
+function loadVoices() {
+    voices = synth.getVoices();
+    const select = document.getElementById('voice-select');
+    select.innerHTML = '';
+    
+    voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.default) option.textContent += ' [Default]';
+        select.appendChild(option);
+    });
+}
 
-            processBtn.disabled = true;
-            processBtn.textContent = '読み込み中...';
+function renderSavedLists(disableHighlight = false) {
+    const container = document.getElementById('saved-lists');
+    container.innerHTML = '';
+    
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('eq_data_'));
+    
+    if(keys.length === 0) {
+        container.innerHTML = '<div style="font-size:0.75rem; opacity:0.5; text-align:center; padding:10px;">クイズ側でデータを保存してください</div>';
+        return;
+    }
 
-            for (let file of files) {
-                try {
-                    const audioBuffer = await loadAudioBufferWithFFmpeg(file);
+    keys.forEach((key, idx) => {
+        try {
+            const item = JSON.parse(localStorage.getItem(key));
+            if (!item || !item.genre) return;
 
-                    fileItems.push({
-                        file: file,
-                        buffer: audioBuffer,
-                        duration: audioBuffer.duration,
-                        startTime: 0,
-                        endTime: audioBuffer.duration,
-                        speed: 1.0,
-                        volume: 1.0,
-                        reverse: false,
-                        filter: 'none'
-                    });
-                } catch (err) {
-                    console.error('読み込みエラー:', file.name, err);
-                    alert(`「${file.name}」の読み込みに失敗しました。ファイルが破損している可能性があります。`);
-                }
+            const div = document.createElement('div');
+            div.className = 'storage-item';
+            
+            if (!disableHighlight && (selectedStoredText === item.text || (!selectedStoredText && idx === 0))) {
+                div.classList.add('selected'); 
+                selectedStoredText = item.text;
+                parseTextToDatabase(item.text);
             }
-
-            statusMsg.textContent = '';
-            audioFileInput.value = '';
-            updateFileList();
-            processBtn.disabled = fileItems.length === 0;
-            processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
-        });
-
-        function stopPreview() {
-            if (activeSourceNode) {
-                try {
-                    activeSourceNode.stop();
-                    activeSourceNode.disconnect();
-                } catch (e) {}
-                activeSourceNode = null;
-            }
-            playingIndex = -1;
-            updatePlayButtons();
-        }
-
-        window.togglePreview = function(index) {
-            const ctx = getAudioContext();
-
-            if (playingIndex === index) {
-                stopPreview();
-                return;
-            }
-
-            stopPreview();
-
-            const item = fileItems[index];
-            const numChannels = item.buffer.numberOfChannels;
-            const sampleRate = item.buffer.sampleRate;
-
-            let srcBuffer = item.buffer;
-
-            if (item.reverse) {
-                srcBuffer = ctx.createBuffer(numChannels, item.buffer.length, sampleRate);
-                for (let ch = 0; ch < numChannels; ch++) {
-                    const inData = item.buffer.getChannelData(ch);
-                    const outData = srcBuffer.getChannelData(ch);
-                    for (let i = 0; i < inData.length; i++) {
-                        outData[i] = inData[inData.length - 1 - i];
-                    }
-                }
-            }
-
-            const source = ctx.createBufferSource();
-            source.buffer = srcBuffer;
-            source.playbackRate.value = item.speed;
-
-            const gainNode = ctx.createGain();
-            gainNode.gain.value = item.volume;
-
-            let lastNode = source;
-            if (item.filter !== 'none') {
-                const filterNode = ctx.createBiquadFilter();
-                if (item.filter === 'lowpass') {
-                    filterNode.type = 'lowpass';
-                    filterNode.frequency.value = 1000;
-                } else if (item.filter === 'highpass') {
-                    filterNode.type = 'highpass';
-                    filterNode.frequency.value = 2000;
-                } else if (item.filter === 'bassboost') {
-                    filterNode.type = 'lowshelf';
-                    filterNode.frequency.value = 200;
-                    filterNode.gain.value = 10;
-                }
-                lastNode.connect(filterNode);
-                lastNode = filterNode;
-            }
-
-            lastNode.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            const trimDuration = item.endTime - item.startTime;
-            let actualStart = item.startTime;
-            if (item.reverse) {
-                actualStart = item.duration - item.endTime;
-            }
-
-            source.start(0, actualStart, trimDuration);
-            activeSourceNode = source;
-            playingIndex = index;
-
-            source.onended = () => {
-                if (playingIndex === index) {
-                    playingIndex = -1;
-                    activeSourceNode = null;
-                    updatePlayButtons();
-                }
+            div.innerHTML = `📂 ${item.genre} (${item.count}件)`;
+            
+            div.onclick = () => {
+                if(isPlaying) stopAudio();
+                
+                document.getElementById('paste-input').value = '';
+                document.getElementById('paste-input').classList.remove('active-input');
+                document.getElementById('clear-btn').style.display = 'none';
+                
+                selectedStoredText = item.text;
+                parseTextToDatabase(item.text);
+                renderSavedLists(); 
             };
+            container.appendChild(div);
+        } catch(e) {}
+    });
+}
 
-            updatePlayButtons();
-        };
+function handlePasteInput() {
+    if(isPlaying) stopAudio();
+    
+    const inputTextArea = document.getElementById('paste-input');
+    const text = inputTextArea.value;
+    const clearBtn = document.getElementById('clear-btn');
+    
+    if (text.trim().length > 0) {
+        inputTextArea.classList.add('active-input');
+        clearBtn.style.display = 'block';
+        selectedStoredText = null; 
+        renderSavedLists(true);    
+        parseTextToDatabase(text); 
+    } else {
+        clearPasteInput();
+    }
+}
 
-        function updatePlayButtons() {
-            fileItems.forEach((_, idx) => {
-                const btn = document.getElementById(`playBtn_${idx}`);
-                if (btn) {
-                    if (idx === playingIndex) {
-                        btn.textContent = '■ 停止';
-                        btn.classList.add('playing');
-                    } else {
-                        btn.textContent = '▶ 再生';
-                        btn.classList.remove('playing');
-                    }
-                }
-            });
-        }
+function clearPasteInput() {
+    if(isPlaying) stopAudio();
+    
+    document.getElementById('paste-input').value = '';
+    document.getElementById('paste-input').classList.remove('active-input');
+    document.getElementById('clear-btn').style.display = 'none';
+    
+    selectedStoredText = null;
+    renderSavedLists(); 
+}
 
-        function updateFileList() {
-            fileListEl.innerHTML = '';
-            fileItems.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'file-item';
+function parseTextToDatabase(text) {
+    database = [];
+    if (!text || !text.trim()) return;
 
-                const isPlaying = playingIndex === index;
+    const lines = text.split('\n').map(s => s.trim()).filter(s => s);
 
-                const controlsHtml = currentMode === 'edit' ? `
-                    <div class="file-controls">
-                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
-                            ${isPlaying ? '■ 停止' : '▶ 再生'}
-                        </button>
-                        <button class="btn-mini" onclick="moveFile(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="btn-mini" onclick="moveFile(${index}, 1)" ${index === fileItems.length - 1 ? 'disabled' : ''}>▼</button>
-                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
-                    </div>
-                ` : `
-                    <div class="file-controls">
-                        <button id="playBtn_${index}" class="btn-mini btn-play ${isPlaying ? 'playing' : ''}" onclick="togglePreview(${index})">
-                            ${isPlaying ? '■ 停止' : '▶ 再生'}
-                        </button>
-                        <button class="btn-mini btn-danger" onclick="removeFile(${index})">✕</button>
-                    </div>
-                `;
-
-                let editorHtml = '';
-                if (currentMode === 'edit') {
-                    editorHtml = `
-                        <div class="editor-grid">
-                            <div class="control-group">
-                                <label>開始位置 (秒)</label>
-                                <div class="input-row">
-                                    <input type="range" id="stRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.startTime}" oninput="updateParam(${index}, 'startTime', this.value, 'range')">
-                                    <input type="number" id="stNum_${index}" step="0.01" value="${item.startTime.toFixed(2)}" oninput="updateParam(${index}, 'startTime', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>終了位置 (秒)</label>
-                                <div class="input-row">
-                                    <input type="range" id="etRange_${index}" min="0" max="${item.duration}" step="0.01" value="${item.endTime}" oninput="updateParam(${index}, 'endTime', this.value, 'range')">
-                                    <input type="number" id="etNum_${index}" step="0.01" value="${item.endTime.toFixed(2)}" oninput="updateParam(${index}, 'endTime', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>再生速度 (倍)</label>
-                                <div class="input-row">
-                                    <input type="range" id="spRange_${index}" min="0.25" max="5.0" step="0.05" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'range')">
-                                    <input type="number" id="spNum_${index}" step="0.1" value="${item.speed}" oninput="updateParam(${index}, 'speed', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>音量 (倍)</label>
-                                <div class="input-row">
-                                    <input type="range" id="volRange_${index}" min="0" max="10.0" step="0.05" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'range')">
-                                    <input type="number" id="volNum_${index}" step="0.1" value="${item.volume}" oninput="updateParam(${index}, 'volume', this.value, 'number')">
-                                </div>
-                            </div>
-                            <div class="control-group">
-                                <label>フィルター</label>
-                                <select onchange="updateParam(${index}, 'filter', this.value)">
-                                    <option value="none" ${item.filter === 'none' ? 'selected' : ''}>なし</option>
-                                    <option value="lowpass" ${item.filter === 'lowpass' ? 'selected' : ''}>ローパス (こもり音)</option>
-                                    <option value="highpass" ${item.filter === 'highpass' ? 'selected' : ''}>ハイパス (シャカシャカ音)</option>
-                                    <option value="bassboost" ${item.filter === 'bassboost' ? 'selected' : ''}>低音ブースト</option>
-                                </select>
-                            </div>
-                            <div class="control-group" style="justify-content: flex-end;">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" ${item.reverse ? 'checked' : ''} onchange="updateParam(${index}, 'reverse', this.checked)">
-                                    逆再生
-                                </label>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                li.innerHTML = `
-                    <div class="file-header">
-                        <span class="file-name">${currentMode === 'edit' ? (index + 1) + '. ' : ''}${item.file.name}</span>
-                        ${controlsHtml}
-                    </div>
-                    ${editorHtml}
-                `;
-                fileListEl.appendChild(li);
-            });
-
-            processBtn.disabled = fileItems.length === 0;
-        }
-
-        window.updateParam = function(index, param, value, sourceType = 'direct') {
-            const item = fileItems[index];
-            const numVal = parseFloat(value);
-
-            if (param === 'startTime') {
-                const val = isNaN(numVal) ? 0 : Math.max(0, numVal);
-                item.startTime = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`stRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`stNum_${index}`);
-                    if (el) el.value = val.toFixed(2);
-                }
-            } else if (param === 'endTime') {
-                const val = isNaN(numVal) ? item.duration : valConstraint(numVal, 0, item.duration);
-                item.endTime = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`etRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`etNum_${index}`);
-                    if (el) el.value = val.toFixed(2);
-                }
-            } else if (param === 'speed') {
-                const val = isNaN(numVal) ? 1.0 : Math.max(0.01, numVal); // 最低0.01倍
-                item.speed = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`spRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`spNum_${index}`);
-                    if (el) el.value = val;
-                }
-            } else if (param === 'volume') {
-                const val = isNaN(numVal) ? 1.0 : Math.max(0, numVal); // 0以上なら無限に設定可能
-                item.volume = val;
-                if (sourceType !== 'range') {
-                    const el = document.getElementById(`volRange_${index}`);
-                    if (el) el.value = val;
-                }
-                if (sourceType !== 'number') {
-                    const el = document.getElementById(`volNum_${index}`);
-                    if (el) el.value = val;
-                }
-            } else if (param === 'filter') {
-                item.filter = value;
-            } else if (param === 'reverse') {
-                item.reverse = value;
-            }
-
-            if (playingIndex === index) {
-                togglePreview(index);
-            }
-        };
-
-        function valConstraint(val, min, max) {
-            return Math.min(Math.max(val, min), max);
-        }
-
-        window.moveFile = function(index, direction) {
-            stopPreview();
-            const targetIndex = index + direction;
-            if (targetIndex >= 0 && targetIndex < fileItems.length) {
-                const temp = fileItems[index];
-                fileItems[index] = fileItems[targetIndex];
-                fileItems[targetIndex] = temp;
-                updateFileList();
-            }
-        };
-
-        window.removeFile = function(index) {
-            if (playingIndex === index) {
-                stopPreview();
-            }
-            fileItems.splice(index, 1);
-            updateFileList();
-        };
-
-        processBtn.addEventListener('click', async () => {
-            stopPreview();
-            processBtn.disabled = true;
-            processBtn.textContent = '処理中...';
-
-            try {
-                const ctx = getAudioContext();
-                const processedBuffers = [];
-
-                for (let item of fileItems) {
-                    const sampleRate = item.buffer.sampleRate;
-                    const numChannels = item.buffer.numberOfChannels;
-                    const trimDuration = item.endTime - item.startTime;
-                    const outputDuration = trimDuration / item.speed;
-                    const outputLength = Math.floor(outputDuration * sampleRate);
-
-                    const offlineCtx = new OfflineAudioContext(numChannels, outputLength, sampleRate);
-
-                    let srcBuffer = item.buffer;
-
-                    if (item.reverse) {
-                        srcBuffer = offlineCtx.createBuffer(numChannels, item.buffer.length, sampleRate);
-                        for (let ch = 0; ch < numChannels; ch++) {
-                            const inData = item.buffer.getChannelData(ch);
-                            const outData = srcBuffer.getChannelData(ch);
-                            for (let i = 0; i < inData.length; i++) {
-                                outData[i] = inData[inData.length - 1 - i];
-                            }
-                        }
-                    }
-
-                    const source = offlineCtx.createBufferSource();
-                    source.buffer = srcBuffer;
-                    source.playbackRate.value = item.speed;
-
-                    const gainNode = offlineCtx.createGain();
-                    gainNode.gain.value = item.volume;
-
-                    let lastNode = source;
-                    if (item.filter !== 'none') {
-                        const filterNode = offlineCtx.createBiquadFilter();
-                        if (item.filter === 'lowpass') {
-                            filterNode.type = 'lowpass';
-                            filterNode.frequency.value = 1000;
-                        } else if (item.filter === 'highpass') {
-                            filterNode.type = 'highpass';
-                            filterNode.frequency.value = 2000;
-                        } else if (item.filter === 'bassboost') {
-                            filterNode.type = 'lowshelf';
-                            filterNode.frequency.value = 200;
-                            filterNode.gain.value = 10;
-                        }
-                        lastNode.connect(filterNode);
-                        lastNode = filterNode;
-                    }
-
-                    lastNode.connect(gainNode);
-                    gainNode.connect(offlineCtx.destination);
-
-                    let actualStart = item.startTime;
-                    if (item.reverse) {
-                        actualStart = item.duration - item.endTime;
-                    }
-
-                    source.start(0, actualStart, trimDuration);
-                    const renderedBuffer = await offlineCtx.startRendering();
-                    processedBuffers.push(renderedBuffer);
-                }
-
-                if (processedBuffers.length === 0) return;
-
-                const sampleRate = processedBuffers[0].sampleRate;
-                const numChannels = processedBuffers[0].numberOfChannels;
-                const totalSamples = processedBuffers.reduce((sum, buf) => sum + buf.length, 0);
-
-                const finalBuffer = ctx.createBuffer(numChannels, totalSamples, sampleRate);
-
-                for (let channel = 0; channel < numChannels; channel++) {
-                    const finalData = finalBuffer.getChannelData(channel);
-                    let offset = 0;
-                    for (let buf of processedBuffers) {
-                        const channelData = buf.numberOfChannels > channel ? buf.getChannelData(channel) : buf.getChannelData(0);
-                        finalData.set(channelData, offset);
-                        offset += buf.length;
-                    }
-                }
-
-                const wavBlob = audioBufferToWav(finalBuffer);
-                const url = URL.createObjectURL(wavBlob);
-
-                audioPreview.src = url;
-                downloadBtn.href = url;
-                downloadBtn.download = `converted_${Date.now()}.wav`;
-                outputContainer.style.display = 'block';
-
-            } catch (err) {
-                alert('書き出し中にエラーが発生しました。');
-                console.error(err);
-            } finally {
-                processBtn.disabled = false;
-                processBtn.textContent = currentMode === 'edit' ? '書き出す (トリミング・編集・結合)' : '音声(WAV)に変換';
+    if (text.includes(':')) {
+        text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
+            const p = b.split(/[\/]+/).map(s => s.trim()).filter(s => s);
+            if(p.length >= 2) {
+                database.push({ q: p[0], a: p[1], isTextOnly: false });
             }
         });
+        if(database.length > 0) return;
+    }
 
-        function audioBufferToWav(buffer) {
-            const numChannels = buffer.numberOfChannels;
-            const sampleRate = buffer.sampleRate;
-            const format = 1;
-            const bitDepth = 16;
-            const bytesPerSample = bitDepth / 8;
-            const blockAlign = numChannels * bytesPerSample;
-            const dataLength = buffer.length * blockAlign;
-            const bufferLength = 44 + dataLength;
-
-            const arrayBuffer = new ArrayBuffer(bufferLength);
-            const view = new DataView(arrayBuffer);
-
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataLength, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, format, true);
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * blockAlign, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitDepth, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataLength, true);
-
-            const channels = [];
-            for (let i = 0; i < numChannels; i++) {
-                channels.push(buffer.getChannelData(i));
+    const hasSlash = lines.some(line => line.includes('/'));
+    if (hasSlash) {
+        lines.forEach(line => {
+            const parts = line.split('/').map(s => s.trim()).filter(s => s);
+            if (parts.length >= 2) {
+                database.push({ q: parts[0], a: parts[1], isTextOnly: false });
+            } else if (parts.length === 1) {
+                database.push({ q: parts[0], a: '', isTextOnly: true });
             }
+        });
+        return;
+    }
 
-            let offset = 44;
-            for (let i = 0; i < buffer.length; i++) {
-                for (let channel = 0; channel < numChannels; channel++) {
-                    let sample = channels[channel][i];
-                    sample = Math.max(-1, Math.min(1, sample));
-                    sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-                    view.setInt16(offset, sample, true);
-                    offset += 2;
-                }
-            }
+    lines.forEach(line => {
+        database.push({ q: line, a: '', isTextOnly: true });
+    });
+}
 
-            return new Blob([arrayBuffer], { type: 'audio/wav' });
+function togglePlay() {
+    if (isPlaying) {
+        stopAudio();
+    } else {
+        startAudio();
+    }
+}
+
+function startAudio() {
+    if (database.length === 0) {
+        alert("読み上げるデータがありません。テキストを入力するかソースを選択してください。");
+        return;
+    }
+    isPlaying = true;
+    const btn = document.getElementById('action-btn');
+    btn.innerText = "STOP AUDIO";
+    btn.classList.add('playing');
+    
+    initAudioContext();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    if (silenceNode) {
+        try { silenceNode.start(); } catch(e) {}
+    }
+    requestWakeLock();
+    
+    // 音声開始と同時にCanvasループも回す（PiPへのリアルタイムテキスト反映用）
+    startCanvasRenderLoop();
+    
+    speakLoop();
+}
+
+function stopAudio() {
+    isPlaying = false;
+    synth.cancel();
+    clearTimeout(timeoutId);
+    
+    if (audioCtx && audioCtx.state === 'running') {
+        audioCtx.suspend();
+    }
+    releaseWakeLock();
+    
+    isCanvasLooping = false;
+    
+    const btn = document.getElementById('action-btn');
+    btn.innerText = "START AUDIO";
+    btn.classList.remove('playing');
+    
+    document.getElementById('current-track').innerText = "STOPPED";
+    document.getElementById('now-playing').innerText = "一時停止しました";
+}
+
+function speakLoop() {
+    if (!isPlaying) return;
+
+    const randomIndex = Math.floor(Math.random() * database.length);
+    const item = database[randomIndex];
+    
+    const mode = document.getElementById('play-mode').value;
+    const speed = parseFloat(document.getElementById('val-speed').value);
+    const pitch = parseFloat(document.getElementById('val-pitch').value);
+    const selectedVoiceIdx = document.getElementById('voice-select').value;
+    const pauseSec = parseInt(document.getElementById('pause-sec').value) * 1000;
+
+    const trackInfo = document.getElementById('current-track');
+    const display = document.getElementById('now-playing');
+
+    if (item.isTextOnly || mode === 'q') {
+        trackInfo.innerText = item.isTextOnly ? "MODE: TEXT PLAYBACK" : "MODE: QUESTION ONLY";
+        display.innerText = item.q;
+        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
+            timeoutId = setTimeout(speakLoop, pauseSec);
+        });
+    } else if (mode === 'a') {
+        trackInfo.innerText = "MODE: ANSWER ONLY";
+        display.innerText = item.a || "(答えデータなし)";
+        speakText(item.a || "データなし", speed, pitch, selectedVoiceIdx, () => {
+            timeoutId = setTimeout(speakLoop, pauseSec);
+        });
+    } else {
+        trackInfo.innerText = "MODE: SET (QUESTION)";
+        display.innerText = item.q;
+        
+        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
+            if (!isPlaying) return;
+            
+            timeoutId = setTimeout(() => {
+                if (!isPlaying) return;
+                trackInfo.innerText = "MODE: SET (ANSWER)";
+                display.innerText = item.a;
+                
+                speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
+                    timeoutId = setTimeout(speakLoop, pauseSec);
+                });
+            }, 1000);
+        });
+    }
+}
+
+function speakText(text, speed, pitch, voiceIdx, callback) {
+    synth.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speed;
+    utterance.pitch = pitch;
+    
+    if (voiceIdx !== "" && voices[voiceIdx]) {
+        utterance.voice = voices[voiceIdx];
+    }
+
+    utterance.onend = () => {
+        if (isPlaying && callback) {
+            Promise.resolve().then(() => { callback(); });
         }
+    };
 
-        function writeString(view, offset, string) {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
+    utterance.onerror = (e) => {
+        console.error("SpeechSynthesis error", e);
+        if (isPlaying && callback) {
+            Promise.resolve().then(() => { callback(); });
         }
-    </script>
+    };
+
+    synth.speak(utterance);
+    
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker 登録成功:', reg.scope))
+            .catch(err => console.error('Service Worker 登録失敗:', err));
+    });
+}
+</script>
 </body>
 </html>
