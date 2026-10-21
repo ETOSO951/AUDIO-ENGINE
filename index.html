@@ -3,544 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELITE AUDIO ENGINE v1.2</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#020617">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="AudioElite">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
+    <title>PocketDev - Final Edition</title>
     <style>
-        :root {
-            --bg: #020617; --card: #1e293b; --primary: #aa98f8;
-            --success: #22c55e; --error: #f43f5e; --text: #f1f5f9;
-            --accent: #ec4899;
-        }
-        body { 
-            font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; margin: 0; overflow: hidden;
-            touch-action: manipulation;
-        }
-        
-        #audio-container { 
-            background: var(--card); width: 92%; max-width: 380px; 
-            height: 94vh; padding: 1.2rem; border-radius: 36px; 
-            display: flex; flex-direction: column; align-items: center; 
-            position: relative; border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-            box-sizing: border-box;
-        }
-
-        .title-logo { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.8rem; letter-spacing: -1px; text-align: center;}
-        
-        /* データソースエリア */
-        .storage-title { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; width: 100%; text-align: left; }
-        .storage-box { width: 100%; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 8px; box-sizing: border-box; max-height: 80px; overflow-y: auto; margin-bottom: 8px; }
-        .storage-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
-        .storage-item.selected { background: rgba(170, 152, 248, 0.2) !important; border-color: var(--primary); }
-
-        /* コピペ用入力エリア */
-        .paste-container { width: 100%; display: flex; flex-direction: column; margin-bottom: 12px; position: relative; }
-        .paste-textarea { 
-            width: 100%; height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; 
-            color: white; padding: 8px; border-radius: 12px; font-size: 0.75rem; resize: none; box-sizing: border-box;
-            font-family: inherit; transition: border-color 0.2s;
-        }
-        .paste-textarea:focus { border-color: var(--primary); outline: none; }
-        .paste-textarea.active-input { border-color: var(--accent); background: rgba(236, 72, 153, 0.05); }
-        .clear-btn { position: absolute; right: 8px; bottom: 6px; background: rgba(255,255,255,0.1); border: none; color: #94a3b8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
-
-        /* 状況表示ボード */
-        .status-board {
-            width: 100%; background: rgba(0,0,0,0.2); border-radius: 20px;
-            padding: 15px; box-sizing: border-box; text-align: center;
-            margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);
-            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            min-height: 90px;
-        }
-        #current-track { font-size: 0.75rem; color: var(--primary); font-weight: bold; margin-bottom: 6px; }
-        #now-playing { font-size: 1.4rem; font-weight: 800; line-height: 1.4; word-break: break-all; min-height: 3.5rem; display: flex; align-items: center; justify-content: center; }
-
-        /* コントロール・設定エリア */
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 20px; box-sizing: border-box; margin-bottom: 12px;}
-        .config-item { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: #94a3b8; }
-        .config-item.full { grid-column: span 2; }
-        .config-input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
-        
-        .slider-container { display: flex; align-items: center; gap: 8px; }
-        .slider-container input { flex-grow: 1; accent-color: var(--primary); }
-        .slider-val { width: 25px; text-align: right; font-family: monospace; }
-
-        /* 操作ボタンエリア */
-        .btn-group { display: flex; gap: 8px; width: 100%; }
-        .control-btn { flex: 2; background: linear-gradient(135deg, var(--primary), #818cf8); color: var(--bg); border: none; padding: 14px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: opacity 0.2s; }
-        .control-btn.playing { background: linear-gradient(135deg, var(--error), #e11d48); color: white; }
-        
-        /* PiP専用ボタン */
-        .pip-btn { flex: 1; background: #334155; color: white; font-size: 0.85rem; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; cursor: pointer; }
+        :root { --accent: #007acc; --bg: #1e1e1e; --panel: #252526; }
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: white; display: flex; flex-direction: column; }
+        .toolbar { flex-shrink: 0; padding: 8px; background: #333; display: flex; flex-direction: column; gap: 4px; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .toolbar-row { display: flex; gap: 4px; width: 100%; }
+        input, button { padding: 6px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #555; background: #444; color: white; flex: 1 1 auto; }
+        button { background: var(--accent); border: none; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        button:hover { opacity: 0.9; }
+        .btn-run { background: #28a745; min-width: 90px; }
+        .btn-clip { background: #555; }
+        #editor-container { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        #editor { flex: 1; width: 100%; border: none; padding: 10px; background: var(--panel); color: #d4d4d4; font-family: monospace; font-size: 14px; resize: none; box-sizing: border-box; outline: none; overflow-y: auto; }
+        .footer-info { font-size: 10px; color: #888; padding: 4px 10px; background: #1a1a1a; }
     </style>
 </head>
 <body>
 
-<div id="audio-container">
-    <div class="title-logo">AUDIO<span style="color:var(--primary)">ELITE v1.2</span></div>
-
-    <div class="storage-title">アプリ経由のデータソース</div>
-    <div class="storage-box" id="saved-lists"></div>
-
-    <div class="storage-title">または、ここにテキストをコピペ</div>
-    <div class="paste-container">
-        <textarea id="paste-input" class="paste-textarea" placeholder="問題/答え、または、通常の文章をペースト..." oninput="handlePasteInput()"></textarea>
-        <button class="clear-btn" id="clear-btn" onclick="clearPasteInput()" style="display:none;">クリア</button>
-    </div>
-
-    <div class="status-board">
-        <div id="current-track">STOPPED</div>
-        <div id="now-playing">再生ボタンを押してください</div>
-    </div>
-
-    <div class="config-grid">
-        <div class="config-item full">
-            <span>声の種類 (ボイスキャスト)</span>
-            <select id="voice-select"><option value="">システム標準音声</option></select>
+    <div class="toolbar">
+        <div class="toolbar-row">
+            <input type="text" id="findInput" placeholder="検索ワード">
+            <button onclick="findNextText()">🔍 次へ</button>
+            <button class="btn-clip" onclick="copyToClipboard()">コピー</button>
+            <button class="btn-clip" onclick="pasteFromClipboard()">貼り付け</button>
         </div>
-        <div class="config-item">
-            <span>読み上げモード</span>
-            <select id="play-mode">
-                <option value="set">問題 ➔ 答え (セット)</option>
-                <option value="q">問題（または単一テキスト）のみ</option>
-                <option value="a">答えのみ</option>
-            </select>
-        </div>
-        <div class="config-item">
-            <span>次への間隔 (秒)</span>
-            <input type="number" id="pause-sec" class="config-input" value="2" min="0" max="10">
-        </div>
-        <div class="config-item full">
-            <span>速度 (Speed)</span>
-            <div class="slider-container">
-                <input type="range" id="val-speed" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('lbl-speed').innerText=this.value">
-                <span class="slider-val" id="lbl-speed">1.0</span>
-            </div>
-        </div>
-        <div class="config-item full">
-            <span>音程 (Pitch)</span>
-            <div class="slider-container">
-                <input type="range" id="val-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('lbl-pitch').innerText=this.value">
-                <span class="slider-val" id="lbl-pitch">1.0</span>
-            </div>
+        <div class="toolbar-row">
+            <input type="text" id="replaceInput" placeholder="置換後のワード">
+            <button onclick="replaceText()">置換</button>
+            <button onclick="replaceAllText()">すべて置換</button>
+            <button class="btn-run" onclick="runCode()">▶ 実行</button>
         </div>
     </div>
 
-    <div class="btn-group">
-        <button id="action-btn" class="control-btn" onclick="togglePlay()">START AUDIO</button>
-        <button id="pip-trigger-btn" class="pip-btn" onclick="togglePiP()">PIP WINDOW</button>
+    <div id="editor-container">
+        <textarea id="editor" spellcheck="false" placeholder="ここにHTMLを貼り付けてください..."></textarea>
     </div>
-</div>
 
-<video id="hidden-pip-video" autoplay playsinline muted style="display:none;"></video>
-<canvas id="hidden-pip-canvas" width="400" height="200" style="display:none;"></canvas>
+    <div class="footer-info">
+        ※ 実行時に「ポップアップの許可」を求められた場合は許可してください。
+    </div>
 
-<script>
-let database = [];
-let selectedStoredText = null;
-let isPlaying = false;
-let synth = window.speechSynthesis;
-let voices = [];
-let timeoutId = null;
+    <script>
+        const editor = document.getElementById('editor');
+        let lastSearchTerm = "";
+        let currentSearchIndex = 0;
 
-// --- バックグラウンド・PiP用の制御変数 ---
-let wakeLock = null;
-let audioCtx = null;
-let silenceNode = null;
-let pipCanvasStream = null;
-let isCanvasLooping = false;
-
-window.onload = function() {
-    renderSavedLists();
-    loadVoices();
-    if (synth.onvoiceschanged !== undefined) {
-        synth.onvoiceschanged = loadVoices;
-    }
-    
-    document.body.addEventListener('click', initAudioContext, { once: true });
-    document.body.addEventListener('touchstart', initAudioContext, { once: true });
-    
-    // ページを閉じたりバックグラウンド化でPiPが解除された場合の監視イベント
-    const video = document.getElementById('hidden-pip-video');
-    video.addEventListener('leavepictureinpicture', () => {
-        document.getElementById('pip-trigger-btn').style.background = '#334155';
-    });
-};
-
-function initAudioContext() {
-    if (audioCtx) return;
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        
-        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
-        silenceNode = audioCtx.createBufferSource();
-        silenceNode.buffer = buffer;
-        silenceNode.loop = true;
-        silenceNode.connect(audioCtx.destination);
-    } catch (e) {
-        console.error("Web Audio API 初期化エラー:", e);
-    }
-}
-
-async function requestWakeLock() {
-    if ('wakeLock' in navigator) {
-        try {
-            wakeLock = await navigator.wakeLock.request('screen');
-        } catch (err) {
-            console.error(`Wake Lock エラー: ${err.name}`);
-        }
-    }
-}
-
-function releaseWakeLock() {
-    if (wakeLock) {
-        wakeLock.release().then(() => { wakeLock = null; });
-    }
-}
-
-// --- 【新機能】テキストを描画して疑似的な映像を作る処理ループ ---
-function startCanvasRenderLoop() {
-    if (isCanvasLooping) return;
-    isCanvasLooping = true;
-
-    const canvas = document.getElementById('hidden-pip-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    function renderFrame() {
-        if (!isCanvasLooping) return;
-
-        // 1. 背景をクリア・描画
-        ctx.fillStyle = "#0f172a"; 
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 2. モード（上部のステータス）を描画
-        const modeText = document.getElementById('current-track').innerText;
-        ctx.fillStyle = "#aa98f8"; 
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(modeText, canvas.width / 2, 35);
-
-        // 3. メインの読み上げテキストを中央に描画
-        const text = document.getElementById('now-playing').innerText;
-        ctx.fillStyle = "#f1f5f9"; 
-        ctx.font = "bold 22px sans-serif";
-        
-        // 長い文字列を安全に表示するため簡易折り返し処理
-        if (text.length > 14) {
-            ctx.fillText(text.substring(0, 14), canvas.width / 2, 100);
-            ctx.fillText(text.substring(14, 28), canvas.width / 2, 135);
-        } else {
-            ctx.fillText(text, canvas.width / 2, 110);
+        async function copyToClipboard() {
+            try {
+                await navigator.clipboard.writeText(editor.value);
+                alert("コピーしました");
+            } catch (err) { alert("失敗: " + err); }
         }
 
-        requestAnimationFrame(renderFrame);
-    }
-    renderFrame();
-}
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (confirm("内容を置き換えますか？")) { editor.value = text; }
+            } catch (err) { alert("貼り付け失敗: " + err); }
+        }
 
-// --- 【新機能】ピクチャーインピクチャー(PiP)ウィンドウの切り替え制御 ---
-async function togglePiP() {
-    const video = document.getElementById('hidden-pip-video');
-    const canvas = document.getElementById('hidden-pip-canvas');
-    const pipBtn = document.getElementById('pip-trigger-btn');
+        function runCode() {
+            let userCode = editor.value;
+            if (!userCode.trim()) { alert("コードを入力してください"); return; }
 
-    if (!document.pictureInPictureEnabled) {
-        alert("お使いの端末・ブラウザはピクチャー・イン・ピクチャー機能に対応していません。");
-        return;
-    }
+            userCode = userCode.replace(/document\.addEventListener\(\s*["']DOMContentLoaded["']\s*,/g, '(function(');
 
-    try {
-        if (document.pictureInPictureElement) {
-            // すでに起動中なら終了する
-            await document.exitPictureInPicture();
-            pipBtn.style.background = '#334155';
-        } else {
-            // キャンバス描画ループを開始
-            startCanvasRenderLoop();
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preview</title></head><body>${userCode}</body></html>`;
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
             
-            // キャンバスから映像のメディアストリーム(毎秒5フレーム)を抽出してvideoに供給
-            if (!video.srcObject) {
-                pipCanvasStream = canvas.captureStream(5);
-                video.srcObject = pipCanvasStream;
+            const newWin = window.open(blobUrl, '_blank');
+            if (!newWin) {
+                alert("ポップアップがブロックされました。");
             }
-            
-            await video.play();
-            await video.requestPictureInPicture();
-            pipBtn.style.background = 'var(--accent)';
         }
-    } catch (e) {
-        console.error("PiP制御エラー:", e);
-        alert("起動できませんでした。先に音声の『START AUDIO』を押して再生状態にしてからお試しください。");
-    }
-}
 
-function loadVoices() {
-    voices = synth.getVoices();
-    const select = document.getElementById('voice-select');
-    select.innerHTML = '';
-    
-    voices.forEach((voice, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = `${voice.name} (${voice.lang})`;
-        if (voice.default) option.textContent += ' [Default]';
-        select.appendChild(option);
-    });
-}
+        function findNextText() {
+            const txt = document.getElementById('findInput').value;
+            if (!txt) return;
 
-function renderSavedLists(disableHighlight = false) {
-    const container = document.getElementById('saved-lists');
-    container.innerHTML = '';
-    
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('eq_data_'));
-    
-    if(keys.length === 0) {
-        container.innerHTML = '<div style="font-size:0.75rem; opacity:0.5; text-align:center; padding:10px;">クイズ側でデータを保存してください</div>';
-        return;
-    }
-
-    keys.forEach((key, idx) => {
-        try {
-            const item = JSON.parse(localStorage.getItem(key));
-            if (!item || !item.genre) return;
-
-            const div = document.createElement('div');
-            div.className = 'storage-item';
-            
-            if (!disableHighlight && (selectedStoredText === item.text || (!selectedStoredText && idx === 0))) {
-                div.classList.add('selected'); 
-                selectedStoredText = item.text;
-                parseTextToDatabase(item.text);
+            if (lastSearchTerm !== txt) {
+                lastSearchTerm = txt;
+                currentSearchIndex = editor.selectionStart;
             }
-            div.innerHTML = `📂 ${item.genre} (${item.count}件)`;
-            
-            div.onclick = () => {
-                if(isPlaying) stopAudio();
+
+            let idx = editor.value.indexOf(txt, currentSearchIndex);
+
+            if (idx === -1) {
+                idx = editor.value.indexOf(txt, 0);
+            }
+
+            if (idx !== -1) {
+                editor.focus();
+                editor.setSelectionRange(idx, idx + txt.length);
                 
-                document.getElementById('paste-input').value = '';
-                document.getElementById('paste-input').classList.remove('active-input');
-                document.getElementById('clear-btn').style.display = 'none';
-                
-                selectedStoredText = item.text;
-                parseTextToDatabase(item.text);
-                renderSavedLists(); 
-            };
-            container.appendChild(div);
-        } catch(e) {}
-    });
-}
+                const lines = editor.value.substr(0, idx).split("\n").length;
+                editor.scrollTop = (lines - 1) * 18;
 
-function handlePasteInput() {
-    if(isPlaying) stopAudio();
-    
-    const inputTextArea = document.getElementById('paste-input');
-    const text = inputTextArea.value;
-    const clearBtn = document.getElementById('clear-btn');
-    
-    if (text.trim().length > 0) {
-        inputTextArea.classList.add('active-input');
-        clearBtn.style.display = 'block';
-        selectedStoredText = null; 
-        renderSavedLists(true);    
-        parseTextToDatabase(text); 
-    } else {
-        clearPasteInput();
-    }
-}
-
-function clearPasteInput() {
-    if(isPlaying) stopAudio();
-    
-    document.getElementById('paste-input').value = '';
-    document.getElementById('paste-input').classList.remove('active-input');
-    document.getElementById('clear-btn').style.display = 'none';
-    
-    selectedStoredText = null;
-    renderSavedLists(); 
-}
-
-function parseTextToDatabase(text) {
-    database = [];
-    if (!text || !text.trim()) return;
-
-    const lines = text.split('\n').map(s => s.trim()).filter(s => s);
-
-    if (text.includes(':')) {
-        text.split(':').map(s => s.trim()).filter(s => s).forEach(b => {
-            const p = b.split(/[\/]+/).map(s => s.trim()).filter(s => s);
-            if(p.length >= 2) {
-                database.push({ q: p[0], a: p[1], isTextOnly: false });
+                currentSearchIndex = idx + txt.length;
+            } else {
+                alert("見つかりませんでした");
+                currentSearchIndex = 0;
             }
-        });
-        if(database.length > 0) return;
-    }
+        }
 
-    const hasSlash = lines.some(line => line.includes('/'));
-    if (hasSlash) {
-        lines.forEach(line => {
-            const parts = line.split('/').map(s => s.trim()).filter(s => s);
-            if (parts.length >= 2) {
-                database.push({ q: parts[0], a: parts[1], isTextOnly: false });
-            } else if (parts.length === 1) {
-                database.push({ q: parts[0], a: '', isTextOnly: true });
+        function replaceText() {
+            const findTxt = document.getElementById('findInput').value;
+            const replaceTxt = document.getElementById('replaceInput').value;
+            if (!findTxt) return;
+
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            if (selectedText === findTxt) {
+                editor.value = editor.value.substring(0, start) + replaceTxt + editor.value.substring(end);
+                editor.setSelectionRange(start, start + replaceTxt.length);
+                currentSearchIndex = start + replaceTxt.length;
+                findNextText();
+            } else {
+                findNextText();
+                const newStart = editor.selectionStart;
+                const newEnd = editor.selectionEnd;
+                if (editor.value.substring(newStart, newEnd) === findTxt) {
+                    replaceText();
+                }
             }
-        });
-        return;
-    }
+        }
 
-    lines.forEach(line => {
-        database.push({ q: line, a: '', isTextOnly: true });
-    });
-}
+        function replaceAllText() {
+            const findTxt = document.getElementById('findInput').value;
+            const replaceTxt = document.getElementById('replaceInput').value;
+            if (!findTxt) return;
 
-function togglePlay() {
-    if (isPlaying) {
-        stopAudio();
-    } else {
-        startAudio();
-    }
-}
-
-function startAudio() {
-    if (database.length === 0) {
-        alert("読み上げるデータがありません。テキストを入力するかソースを選択してください。");
-        return;
-    }
-    isPlaying = true;
-    const btn = document.getElementById('action-btn');
-    btn.innerText = "STOP AUDIO";
-    btn.classList.add('playing');
-    
-    initAudioContext();
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    if (silenceNode) {
-        try { silenceNode.start(); } catch(e) {}
-    }
-    requestWakeLock();
-    
-    // 音声開始と同時にCanvasループも回す（PiPへのリアルタイムテキスト反映用）
-    startCanvasRenderLoop();
-    
-    speakLoop();
-}
-
-function stopAudio() {
-    isPlaying = false;
-    synth.cancel();
-    clearTimeout(timeoutId);
-    
-    if (audioCtx && audioCtx.state === 'running') {
-        audioCtx.suspend();
-    }
-    releaseWakeLock();
-    
-    isCanvasLooping = false;
-    
-    const btn = document.getElementById('action-btn');
-    btn.innerText = "START AUDIO";
-    btn.classList.remove('playing');
-    
-    document.getElementById('current-track').innerText = "STOPPED";
-    document.getElementById('now-playing').innerText = "一時停止しました";
-}
-
-function speakLoop() {
-    if (!isPlaying) return;
-
-    const randomIndex = Math.floor(Math.random() * database.length);
-    const item = database[randomIndex];
-    
-    const mode = document.getElementById('play-mode').value;
-    const speed = parseFloat(document.getElementById('val-speed').value);
-    const pitch = parseFloat(document.getElementById('val-pitch').value);
-    const selectedVoiceIdx = document.getElementById('voice-select').value;
-    const pauseSec = parseInt(document.getElementById('pause-sec').value) * 1000;
-
-    const trackInfo = document.getElementById('current-track');
-    const display = document.getElementById('now-playing');
-
-    if (item.isTextOnly || mode === 'q') {
-        trackInfo.innerText = item.isTextOnly ? "MODE: TEXT PLAYBACK" : "MODE: QUESTION ONLY";
-        display.innerText = item.q;
-        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
-            timeoutId = setTimeout(speakLoop, pauseSec);
-        });
-    } else if (mode === 'a') {
-        trackInfo.innerText = "MODE: ANSWER ONLY";
-        display.innerText = item.a || "(答えデータなし)";
-        speakText(item.a || "データなし", speed, pitch, selectedVoiceIdx, () => {
-            timeoutId = setTimeout(speakLoop, pauseSec);
-        });
-    } else {
-        trackInfo.innerText = "MODE: SET (QUESTION)";
-        display.innerText = item.q;
-        
-        speakText(item.q, speed, pitch, selectedVoiceIdx, () => {
-            if (!isPlaying) return;
-            
-            timeoutId = setTimeout(() => {
-                if (!isPlaying) return;
-                trackInfo.innerText = "MODE: SET (ANSWER)";
-                display.innerText = item.a;
+            if (editor.value.includes(findTxt)) {
+                const escapedFind = findTxt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedFind, 'g');
                 
-                speakText(item.a, speed, pitch, selectedVoiceIdx, () => {
-                    timeoutId = setTimeout(speakLoop, pauseSec);
-                });
-            }, 1000);
-        });
-    }
-}
-
-function speakText(text, speed, pitch, voiceIdx, callback) {
-    synth.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = speed;
-    utterance.pitch = pitch;
-    
-    if (voiceIdx !== "" && voices[voiceIdx]) {
-        utterance.voice = voices[voiceIdx];
-    }
-
-    utterance.onend = () => {
-        if (isPlaying && callback) {
-            Promise.resolve().then(() => { callback(); });
+                const matchCount = (editor.value.match(regex) || []).length;
+                editor.value = editor.value.replace(regex, replaceTxt);
+                alert(matchCount + "箇所を置き換えました。");
+            } else {
+                alert("見つかりませんでした");
+            }
         }
-    };
-
-    utterance.onerror = (e) => {
-        console.error("SpeechSynthesis error", e);
-        if (isPlaying && callback) {
-            Promise.resolve().then(() => { callback(); });
-        }
-    };
-
-    synth.speak(utterance);
-    
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-}
-
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker 登録成功:', reg.scope))
-            .catch(err => console.error('Service Worker 登録失敗:', err));
-    });
-}
-</script>
+    </script>
 </body>
 </html>
